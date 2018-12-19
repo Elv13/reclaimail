@@ -1,0 +1,25 @@
+---
+# Only necessary if running on machines with limited memory (under 512 MB)
+- hosts: offlineimap
+
+  tasks:
+  - name: Copy systemd service file
+    synchronize: src="offlineimap-gmail.service" dest="/etc/systemd/system/offlineimap-gmail.service"
+
+  - name: Write email to systemd config
+    lineinfile: dest="/etc/sysconfig/offlineimap-gmail" state=present create=yes line="EMAIL={{ lookup('env', 'EMAIL') }}"  
+
+  - name: Write password to systemd config
+    lineinfile: dest="/etc/sysconfig/offlineimap-gmail" state=present create=yes line="PASSWORD={{ lookup('env', 'PASSWORD') }}"  
+
+
+  # Assumes RHEL-based server (Red Hat/Fedora/CentOS)
+  # Change to desired distro package manager
+  - name: Install docker
+    yum: name="docker-io" state="present"
+
+  - name: Make directory to mount as volume
+    file: path=/tmp/mail owner=root group=root mode=777 state=directory 
+
+  - name: Run systemd service for offlineimap-gmail
+    service: name="offlineimap-gmail" enabled="yes" state="started"

@@ -1,0 +1,76 @@
+[general]
+accounts = GMail
+ui = Blinkenlights
+socktimeout = 120
+
+[mbnames]
+enabled = yes
+filename = ~/Mutt/muttrc.mailboxes
+header = "mailboxes "
+peritem = "+%(accountname)s/%(foldername)s"
+sep = " "
+footer = "\n"
+
+[Account GMail]
+localrepository = LocalExample
+remoterepository = RemoteExample
+synclabels = no
+autorefresh = 0.5
+quick = 10
+ignorelabels = \Inbox, \Starred, \Sent, \Draft, \Spam, \Trash, \Important, \Gmail\Important
+
+[Repository LocalExample]
+type = Maildir
+localfolders = ~/GMail
+nametrans = lambda folder: {'drafts':   '[Gmail]/Drafts',
+                            'sent':     '[Gmail]/Sent Mail',
+                            'important':'[Gmail]/Important',
+                            'spam':     '[Gmail]/Spam',
+                            'starred':  '[Gmail]/Starred',
+                            'trash':    '[Gmail]/Trash',
+                            'archive':  '[Gmail]/All Mail',
+                            }.get(folder, folder)
+
+[Repository GmailLocalExample]
+type = GmailMaildir
+
+# Go to https://console.developers.google.com/apis/credentials
+# create a project, click credetials
+# git clone https://github.com/google/gmail-oauth2-tools
+# run:
+#    python2 gmail-oauth2-tools/python/oauth2.py --generate_oauth2_token \
+#    --client_id=<the text ending with .apps.googleusercontent.com> \
+#    --client_secret=<secret> 
+#
+# Do what it says, enter the codes below:
+
+[Repository RemoteExample]
+type = IMAP
+ssl = yes
+retrycount = 200
+realdelete = no
+remoteport = 993
+keepalive = 60
+holdconnectionopen = yes
+remotehost = imap.gmail.com
+maxconnections = 10
+sslcacertfile = /etc/ssl/certs/ca-certificates.crt
+oauth2_request_url = https://accounts.google.com/o/oauth2/token
+nametrans = lambda folder: {'[Gmail]/Drafts':    'drafts',
+                            '[Gmail]/Sent Mail': 'sent',
+                            '[Gmail]/Starred':   'flagged',
+                            '[Gmail]/Important':   'important',
+                            '[Gmail]/Spam':   'spam',
+                            '[Gmail]/Trash':     'trash',
+                            '[Gmail]/All Mail':  'archive',
+                            }.get(folder, folder)
+folderfilter = lambda folder: folder not in ['[Gmail]/Important',
+                                             '[Gmail]/Starred',
+                                             ]
+
+# If called with the docker script, this will be changed automatically
+remoteuser = YOUR_EMAIL
+oauth2_client_id = YOUR_CLIENT_ID
+oauth2_client_secret = YOUR_CLIENT_SECRET
+oauth2_access_token = YOUR_ACCESS_TOKEN
+oauth2_refresh_token = YOUR_SECRET

@@ -1,0 +1,15 @@
+[Unit]
+Description=OfflineimapGmail
+After=docker.service
+Requires=docker.service
+
+[Service]
+TimeoutStartSec=0
+EnvironmentFile=/etc/sysconfig/offlineimap-gmail
+ExecStartPre=-/usr/bin/docker kill offlineimapgmail
+ExecStartPre=-/usr/bin/docker rm offlineimapgmail
+ExecStartPre=/usr/bin/docker pull chimeracoder/offlineimap-gmail
+ExecStart=/usr/bin/docker run --name offlineimapgmail -e EMAIL=${EMAIL} -e PASSWORD=${PASSWORD}  -v /tmp/mail:/home/offlineimap/mail chimeracoder/offlineimap-gmail 
+
+[Install]
+WantedBy=multi-user.target

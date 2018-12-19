@@ -1,0 +1,20 @@
+[database]
+path=/home/notmuch/GMail
+
+[user]
+name=Emmanuel Lepage Vallee
+primary_email=elv1313@gmail.com
+
+[new]
+tags=unread;inbox;new
+ignore=.offlineimap
+
+[search]
+exclude_tags=deleted;spam;
+
+[maildir]
+synchronize_flags=true
+
+[crypto]
+gpg_path=gpg
+

@@ -1,0 +1,25 @@
+#set folder ~/Mail
+
+color sidebar_new color221 color233
+
+# Status Bar -----------------------------------------
+set status_chars  = " *%A"
+
+# Header Options -------------------------------------
+ignore *                                # ignore all headers
+unignore from: to: cc: date: subject:   # show only these
+unhdr_order *                           # some distros order things by default
+hdr_order from: to: cc: date: subject:  # and in this order
+
+
+
+# notmuch
+set spoolfile = ~/Mail/INBOX
+#set record = ~/Mail/INBOX.Sent
+#set postponed = ~/Mail/INBOX.Drafts
+#set mbox_type = Maildir
+#set folder = ~/Mail/
+
+lua package.path = package.path..";"..os.getenv("HOME").."/.mutt/?.lua"
+
+lua dofile(os.getenv("HOME").."/.mutt/rc.lua")

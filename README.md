@@ -1,4 +1,4 @@
-RecaiMail: Get eMail under your control
+ReclaiMail: Get eMail under your control
 =======================================
 
 This project aims to allow to make a local copy of some web services like

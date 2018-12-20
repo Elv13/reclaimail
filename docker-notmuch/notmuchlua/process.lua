@@ -31,6 +31,8 @@ local labels = filters.tags
 -- use: `echo BYE | nc -w0 -Uu ~/query.socket` to quit
 
 server.listen(function(command)
+    os.execute("notmuch new")
+
     local db = notmuch "/home/lepagee/Mail/"
     assert(db)
 

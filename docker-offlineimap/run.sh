@@ -30,9 +30,6 @@ while true; do
 
     /home/offlineimap/offlineimap/offlineimap.py \
          -c /home/offlineimap/.offlineimaprc
-    
-    # The loop should not be needed when OfflineIMAP is stable
-    exit 1
 
     cp /home/offlineimap/.offlineimaprc.back /home/offlineimap/.offlineimaprc
 done

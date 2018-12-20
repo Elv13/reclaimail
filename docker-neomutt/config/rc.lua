@@ -5,64 +5,6 @@ local sections    = require( "sections"    )
 local keybindings = require( "keybindings" )
 local option      = require( "options"     )
 local theme       = require( "theme"       )
-
-
--- Generate a "complex" regex golf to encapsulate the tags
-local function generate_tags(tags)
-    local tag_transoform, tag_formats, used_tag_format, tag_format = {}, {}, {}, ""
-
-    -- Each alias has to be unique, they are never shown, but the shorter the better
-    local function generate_alias(name)
-        local alias = "G" .. name:sub(1,1):upper()
-
-        while used_tag_format[alias] do
-            alias = alias .. name:sub(1,1):upper()
-        end
-
-        used_tag_format[alias] = true
-
-        return alias
-    end
-
-    for _, v in ipairs(tags) do
-        -- Add the sidebar
-        mutt.call("virtual-mailboxes", v.name, "notmuch://?query=tag:"..v.name)
-
-        table.insert(tag_transoform, v.name)
-        table.insert(tag_transoform, "⢾"..v.name:upper().."⡷⠀ ")
-
-        -- Set an unique alias for each tag
-        local alias = generate_alias(v.name)
-        table.insert(tag_formats, v.name)
-        table.insert(tag_formats, alias )
-
-        -- Some tags, like archive or inbox make no sense to display
-        if v.display_tag then
-            tag_format = tag_format .. "%?" .. alias .. "?%" .. alias .. " &?"
-
-            -- Right now it seems patterns are broken
-            --theme.index_tag = theme.color {
-            --    bg = "red", fg = "blue", when = '"\\[('..v.name:upper()..')\\]"'
-            --}
-
-            -- Add the tag color
-            theme.index_tag = theme.color {
-                bg = v.bg, fg = v.fg, when = v.name:upper()
-            }
-        end
-    end
-
-    -- Give them a name for the index view
-    mutt.call("tag-formats"   , unpack(tag_formats   ))
-    mutt.call("tag-transforms", unpack(tag_transoform))
-
-    return tag_format
-end
-
-------------------------------------
---            Modules             --
-------------------------------------
-
 local notmuch = option.add_namespace { "nm" }
 
 ------------------------------------
@@ -166,7 +108,7 @@ local tags = {
 }
 
 --TODO create an helper for this
-option.index_format = " %-30.30F│ %s %> " .. generate_tags(tags) .. "│%D"
+option.index_format = " %-30.30F│ %s %> " .. theme.generate_tags(tags) .. "│%D"
 
 ------------------------------------
 --           Key bindings         --

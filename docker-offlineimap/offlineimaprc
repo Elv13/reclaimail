@@ -2,6 +2,7 @@
 accounts = GMail
 ui = Blinkenlights
 socktimeout = 120
+pythonfile = /home/offlineimap/code.py
 
 [mbnames]
 enabled = yes
@@ -54,6 +55,7 @@ keepalive = 60
 holdconnectionopen = yes
 remotehost = imap.gmail.com
 maxconnections = 10
+newmail_hook = lambda: notify_notmuch()
 sslcacertfile = /etc/ssl/certs/ca-certificates.crt
 oauth2_request_url = https://accounts.google.com/o/oauth2/token
 nametrans = lambda folder: {'[Gmail]/Drafts':    'drafts',

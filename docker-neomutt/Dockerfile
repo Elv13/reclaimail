@@ -32,6 +32,5 @@ RUN cd /home/neomutt/neomutt && make -j8
 ADD --chown=neomutt:neomutt notmuch-config /home/neomutt/.notmuch-config
 ADD --chown=neomutt:neomutt config/ /home/neomutt/.mutt/
 
-
 # Use exec mode so neomutt can receive SIGUSR2
-#ENTRYPOINT ["/home/neomutt/neomutt/neomutt"]
+ENTRYPOINT ["/home/neomutt/neomutt/neomutt"]

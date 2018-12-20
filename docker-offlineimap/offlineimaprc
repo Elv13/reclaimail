@@ -19,6 +19,8 @@ synclabels = no
 autorefresh = 0.5
 quick = 10
 ignorelabels = \Inbox, \Starred, \Sent, \Draft, \Spam, \Trash, \Important, \Gmail\Important
+presynchook = /home/offlineimap/presync.sh
+postsynchook = /home/offlineimap/postsync.sh
 
 [Repository LocalExample]
 type = Maildir

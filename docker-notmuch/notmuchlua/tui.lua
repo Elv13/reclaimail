@@ -2,7 +2,7 @@ local tui   = require( "stream_tui" )
 local lpeg  = require( "lpeg"  )
 local ep    = require( "email" )
 
-local rstate, lstate = "", ""
+local rstate, lstate, rdate = "", "", os.date()
 
 local separator = tui.widget{row=2}
 
@@ -27,7 +27,7 @@ function remote_state:draw()
     tui.atomic.print_on_line_cropped {text = function()
         return "OfflineIMAP: "..rstate
     end}
-    tui.atomic.print_on_line_cropped {text="10 minutes ago", align="right"}
+    tui.atomic.print_on_line_cropped {text=rdate, align="right"}
     tui.primitives.add_line()
 end
 
@@ -83,6 +83,7 @@ function module.print_message(path)
 end
 
 function module.set_remote_state(s)
+    rdate = os.date()
     rstate = s
     tui.footer:redraw()
 end

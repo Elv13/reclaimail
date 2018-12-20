@@ -16,7 +16,7 @@ ADD *.py ./
 ADD *.sh ./
 
 RUN chown -R offlineimap:users /home/offlineimap
-RUN chmod +x newmail.sh run.sh
+RUN chmod +x *.sh
 
 USER offlineimap
 

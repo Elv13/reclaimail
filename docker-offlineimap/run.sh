@@ -18,6 +18,8 @@ ln -s /home/offlineimap/GMail/Mutt ~/
 # Backup the offlineimaprc
 cp /home/offlineimap/.offlineimaprc /home/offlineimap/.offlineimaprc.back
 
+~/watchdog.sh &
+
 while true; do
     # offlineimap crashes all the time, always refresh the damn token
     ACCESS_TOKEN=$(python2 ~/oauth2.py  --user=$EMAIL \

@@ -32,8 +32,12 @@ local labels = filters.tags
 -- use: `echo BYE | nc -w0 -Uu ~/query.socket` to quit
 
 server.listen(function(command)
+    tui.set_remote_state(command:sub(1, command:len()-1))
     tui.set_local_state("SCANNING")
     os.execute("bash -c 'notmuch new > /dev/null 2> /dev/null'")
+
+    -- There is nothing to do
+    if command ~= "NEW\n" then return end
 
     local db = notmuch "/home/lepagee/Mail/"
     assert(db)

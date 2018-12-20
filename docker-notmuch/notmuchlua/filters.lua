@@ -317,7 +317,6 @@ end
 return setmetatable(module, {
     __index = function(_, key)
         if rawget(module, "get_"..key) then
-                            print("key", key)
             return rawget(module, "get_"..key)()
         end
 

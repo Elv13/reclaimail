@@ -23,4 +23,4 @@ USER offlineimap
 RUN git clone https://github.com/OfflineIMAP/offlineimap.git --branch next
 
 # Use exec mode so offlineimap can receive SIGUSR2
-# ENTRYPOINT ["/home/offlineimap/run.sh"]
+ENTRYPOINT ["/home/offlineimap/run.sh"]

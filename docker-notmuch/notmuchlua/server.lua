@@ -48,7 +48,7 @@ function strerror()
   return ffi.string(ffi.C.strerror( ffi.errno() ))
 end
 
-K = ffi.new("struct constants")
+local K = ffi.new("struct constants")
 
 local active_socket = nil
 

@@ -48,7 +48,12 @@ server.listen(function(command)
 
     tui.set_local_state("LOADING ("..#new_messages..")")
     for _, m in ipairs(new_messages) do
-        tui.print_message(m.path)
+        local ret, error = pcall(tui.print_message, m.path)
+
+        if not ret then
+             print("FAILED TO PARSE", m.path, ret)
+        end
+
         m:remove_tag("new")
     end
 

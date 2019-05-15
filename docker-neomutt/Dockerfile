@@ -1,12 +1,13 @@
-FROM debian:stretch
+FROM debian:stretch-slim
 MAINTAINER Emmanuel Lepage Vallee <elv1313+bugs@gmail.com>
 
 # Install dependencies
 ENV DEBIAN_FRONTEND noninteractive
 RUN sed 's/deb /deb-src /' /etc/apt/sources.list >> /etc/apt/sources.list
-RUN apt-get -qq update --fix-missing -y
+RUN apt -qq update --fix-missing -y
 RUN apt build-dep mutt -y
-RUN apt-get install -y git lua5.3-dev libxml2-utils  locales luajit -y
+RUN apt install -y --no-install-recommends \
+    ca-certificates unzip wget lua5.3-dev libxml2-utils  locales luajit -y
 
 # Support UTF-8
 ADD locale.gen /etc/
@@ -17,20 +18,24 @@ ENV TERM=xterm-256color
 
 # Avoid using root with externally mounted volume, it helps privilege
 # escalation by playing with file permissions
-RUN groupadd email
-RUN useradd -m neomutt -G email
-RUN chown -R neomutt:users /home/neomutt/
+RUN groupadd email && \
+    useradd -m neomutt -G email && \
+    chown -R neomutt:users /home/neomutt/
+
 WORKDIR /home/neomutt/
 USER neomutt
 
+# Get NeoMutt
+RUN wget https://github.com/neomutt/neomutt/archive/master.zip && \
+  unzip master.zip && rm master.zip
+
 # Build NeoMutt
-RUN git clone https://github.com/neomutt/neomutt
-RUN cd /home/neomutt/neomutt && ./configure --notmuch --lua
-RUN cd /home/neomutt/neomutt && make -j8
+RUN cd /home/neomutt/neomutt-master && ./configure --notmuch --lua && \
+    make -j8
 
 # Add the config
 ADD --chown=neomutt:neomutt notmuch-config /home/neomutt/.notmuch-config
 ADD --chown=neomutt:neomutt config/ /home/neomutt/.mutt/
 
 # Use exec mode so neomutt can receive SIGUSR2
-ENTRYPOINT ["/home/neomutt/neomutt/neomutt"]
+ENTRYPOINT ["/home/neomutt/neomutt-master/neomutt"]

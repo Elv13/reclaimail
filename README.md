@@ -9,7 +9,7 @@ own "smart home router" OS.
 ## How
 
 Thunderbird, KMail, KubeMail, Evolution and other open solutions exists. Plus
-a lot of large groupewares like Zimbra and Kolab. They are good at what they
+a lot of large groupwares like Zimbra and Kolab. They are good at what they
 do, but their size and constant threats of development shutdown / sunsetting
 don't seem to give a nice foundation to start a migration away from GMail.
 

@@ -47,6 +47,6 @@ if [ "$5" == "" ]; then
    echo ./start.sh $EMAIL $CLIENT_ID $CLIENT_SECRET $REFRESH_TOKEN $MAILDIR
 fi
 
-sudo docker run -ti -eSECRET=$REFRESH_TOKEN -eEMAIL=$EMAIL \
+docker run -ti -eSECRET=$REFRESH_TOKEN -eEMAIL=$EMAIL \
      -eCLIENT_ID=$CLIENT_ID -eCLIENT_SECRET=$CLIENT_SECRET\
      -v $MAILDIR:/home/offlineimap/GMail  elv13/offlineimap

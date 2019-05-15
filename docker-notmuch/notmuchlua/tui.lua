@@ -40,7 +40,6 @@ function local_state:draw()
         return lstate
     end}
     tui.atomic.print_on_line_cropped {text="OK", align="right"}
-    tui.primitives.add_line()
 end
 
 tui.footer:push_widget(separator)
@@ -73,11 +72,11 @@ function module.print_message(path)
 
     local ret = lpeg.match(ep, content)
 
-    from_name = ret.from[1].name
-    from_addr = ret.from[1].address
-    subject   = ret.subject
-    date = ret.date.weekday .. ret.date.month .. " " .. ret.date.day.." "..
-        ret.date.hour..":"..ret.date.min
+    from_name = ret.from[1].name or "N/A"
+    from_addr = ret.from[1].address or "N/A"
+    subject   = ret.subject or "N/A"
+    date = (ret.date.weekday .. ret.date.month .. " " .. ret.date.day.." "..
+        ret.date.hour..":"..ret.date.min) or "N/A"
 
     mess:print()
 end

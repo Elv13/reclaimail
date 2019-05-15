@@ -7,7 +7,7 @@
 local ffi = require("ffi")
 local io = io
 
-local libxml = ffi.load("libxml2")
+local libxml = ffi.load("libxml2.so.2")
 
 local c_head = [[
     typedef struct {} xmlParserInputPtr;

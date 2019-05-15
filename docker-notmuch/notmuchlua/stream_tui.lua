@@ -158,7 +158,7 @@ local function clear_footer()
         end
 
         -- Clear the header
-        primitives.go_up(footer_height)
+        primitives.go_up(footer_height-1)
         primitives.carriage_return()
         primitives.clear_to_end()
 --     end

@@ -12,8 +12,8 @@ if [ ! -e '~/.offlineimap' ]; then
     ln -s /home/offlineimap/GMail/.offlineimap ~
 fi
 
-mkdir -p /home/offlineimap/GMail/Mutt
-ln -s /home/offlineimap/GMail/Mutt ~/
+mkdir -p /home/offlineimap/Mail/Mutt
+ln -s /home/offlineimap/Mail/Mutt ~/
 
 # Backup the offlineimaprc
 cp /home/offlineimap/.offlineimaprc /home/offlineimap/.offlineimaprc.back
@@ -23,14 +23,14 @@ cp /home/offlineimap/.offlineimaprc /home/offlineimap/.offlineimaprc.back
 while true; do
     # offlineimap crashes all the time, always refresh the damn token
     ACCESS_TOKEN=$(python2 ~/oauth2.py  --user=$EMAIL \
-        --client_id=101936946311-8vsuneunubv6uk9j8t1hml60avvfamad.apps.googleusercontent.com \
+        --client_id=$CLIENT_ID \
         --client_secret=$CLIENT_SECRET \
         --refresh_token=$SECRET --quiet
     )
 
     sed -i "s/YOUR_ACCESS_TOKEN/$ACCESS_TOKEN/" /home/offlineimap/.offlineimaprc
 
-    /home/offlineimap/offlineimap/offlineimap.py \
+    /home/offlineimap/offlineimap-next/offlineimap.py \
          -c /home/offlineimap/.offlineimaprc
 
     cp /home/offlineimap/.offlineimaprc.back /home/offlineimap/.offlineimaprc

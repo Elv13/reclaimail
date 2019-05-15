@@ -49,4 +49,4 @@ USER notmuch
 ADD mailFilters.xml /home/notmuch
 
 # Use exec mode so notmuch can receive SIGUSR2
-#ENTRYPOINT ["/home/notmuch/run.sh"]
+ENTRYPOINT ["/home/notmuch/run.sh"]

@@ -1,3 +1,4 @@
+local unpack = unpack or table.unpack --lua 5.1 compat
 
 --FIXME remove this hack
 local delimiter = "⮀"

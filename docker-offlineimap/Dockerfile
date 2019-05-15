@@ -27,4 +27,4 @@ RUN wget http://github.com/OfflineIMAP/offlineimap/archive/next.zip && \
   unzip next.zip && rm next.zip
 
 # Use exec mode so offlineimap can receive SIGUSR2
-#ENTRYPOINT ["/home/offlineimap/run.sh"]
+ENTRYPOINT ["/home/offlineimap/run.sh"]

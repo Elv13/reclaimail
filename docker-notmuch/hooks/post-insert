@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo HOOK $1 $2 $3 $4 >> /tmp/hooks
+echo INSERT | nc -w0 -Uu ~/query.socket 

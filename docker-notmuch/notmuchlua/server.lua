@@ -1,12 +1,10 @@
-
-
 -- Stolen from https://github.com/trisulnsm/trisul-scripts/
 -- License unspecified
 -- Itself apparently stolen from https://stackoverflow.com/questions/6025755
 
 local ffi = require('ffi')
 
-local EVE_SOCKETFILE = os.getenv("HOME")..'/Mail/query.socket'
+local EVE_SOCKETFILE = os.getenv("HOME")..'/GMail/query.socket'
 
 -- need to do this mapping .. :-(
 -- takes time to get used to LuaJIT FFI but quite easy once you get the

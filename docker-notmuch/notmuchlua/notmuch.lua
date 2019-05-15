@@ -10,7 +10,7 @@
 local ffi = require("ffi")
 local io = io
 
-local cnotmuch = ffi.load("notmuch")
+local cnotmuch = ffi.load("notmuch.so.4")
 
 -- local c_head = io.open("/usr/include/notmuch.h"):read("*all")
 

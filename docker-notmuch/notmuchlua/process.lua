@@ -25,7 +25,7 @@ local function diff_tags_iterator(existing, new)
     return ipairs(ret)
 end
 
-filters.path = "/home/lepagee/Downloads/mailFilters.xml"
+filters.path = "mailFilters.xml"
 
 local labels = filters.tags
 
@@ -33,13 +33,14 @@ local labels = filters.tags
 
 server.listen(function(command)
     tui.set_remote_state(command:sub(1, command:len()-1))
-    tui.set_local_state("SCANNING")
     os.execute("bash -c 'notmuch new > /dev/null 2> /dev/null'")
 
     -- There is nothing to do
-    if command ~= "NEW\n" then return end
+    if command:sub(1, 3) ~= "NEW" then return end
 
-    local db = notmuch "/home/lepagee/Mail/"
+    tui.set_local_state("SCANNING")
+
+    local db = notmuch "/home/notmuch/GMail/"
     assert(db)
 
     local q = "tag:new"
@@ -71,4 +72,3 @@ server.listen(function(command)
 
     tui.set_local_state("IDLE")
 end)
-

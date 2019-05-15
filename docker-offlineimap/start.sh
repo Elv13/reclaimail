@@ -35,11 +35,18 @@ else
     REFRESH_TOKEN=$4
 fi
 
-if [ "$4" == "" ]; then
+if [ "$5" == "" ]; then
+    echo 'Maildir path (empty directories are fine too):'
+    read MAILDIR
+else
+    MAILDIR=$5
+fi
+
+if [ "$5" == "" ]; then
    echo next time use:
-   echo ./start.sh $EMAIL $CLIENT_ID $CLIENT_SECRET $REFRESH_TOKEN
+   echo ./start.sh $EMAIL $CLIENT_ID $CLIENT_SECRET $REFRESH_TOKEN $MAILDIR
 fi
 
 sudo docker run -ti -eSECRET=$REFRESH_TOKEN -eEMAIL=$EMAIL \
      -eCLIENT_ID=$CLIENT_ID -eCLIENT_SECRET=$CLIENT_SECRET\
-     -v ~/Mail:/home/offlineimap/GMail  elv13/offlineimap
+     -v $MAILDIR:/home/offlineimap/GMail  elv13/offlineimap

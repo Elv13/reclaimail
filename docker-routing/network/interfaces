@@ -1,0 +1,13 @@
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The WAN interface, marked Lan1 on the case
+auto eno1
+iface eno1 inet dhcp
+
+# enp4s0
+auto enp4s0
+iface enp4s0 inet static
+	address 192.168.100.1
+	netmask 255.255.255.0

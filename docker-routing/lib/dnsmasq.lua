@@ -1,4 +1,6 @@
 --!/usr/bin/lua
+local unpack = unpack or table.unpack -- Lua 5.1 compat
+local ip, interfaces = unpack(require("proc_ip"))
 
 local function create_object(args)
     args = args or {}
@@ -44,14 +46,14 @@ local function create_object(args)
 end
 
 local leases, leases_by_mac = create_object(), {}
-local hosts, saved_hosts = create_object(), {}
-local ethers, saved_ethers = create_object(), {}
+local hosts , saved_hosts   = create_object(), {}
+local ethers, saved_ethers  = create_object(), {}
 
 local map = {
-    add = "created", old = "renewed", del = "expired"
+    add = "created", old = "expireed", del = "expired"
 }
 
--- Called when a lease is created, expired or renewed
+-- Called when a lease is created, expired or expireed
 function lease(event, args)
     local l = leases_by_mac[args.mac_address] or create_object {
         class = leases,
@@ -61,7 +63,7 @@ function lease(event, args)
         l.created = os.date("%s")
     end
 
-    l.renewed = os.date("%s")
+    l.expireed = os.date("%s")
     l.active  = event ~= "del"
 
     -- Do it one-by-one so the signals are sent.
@@ -88,7 +90,46 @@ function tftp(args)
     end
 end
 
+local config = {_buffer = {}}
+
+local conf_handler = {
+    --TODO
+}
+
+setmetatable(config, {
+    __newindex = function(_, key, value)
+        local t = type(value)
+        local fixed_key = key:gsub("_", "-")
+
+        if t == "boolean" then
+            table.insert(config._buffer, fixed_key)
+        elseif t == "string" or t == "number" then
+            table.insert(config._buffer, fixed_key.."="..value)
+        elseif t == "table" then
+            assert(conf_handler[key])
+            table.insert(config._buffer, fixed_key, conf_handler[key](value))
+        end
+    end
+})
+
 local session = create_object()
+
+function configure()
+   print("IN LUA CONFIGURE")
+
+   -- When a config value must have a comma separated list, it's necessary to
+   -- tell when to push it.
+   session.emit_signal("finish::config")
+
+   return config._buffer
+end
+
+function tftp_lookup(addr, args)
+   print("\n\nTFTP LUA", addr)
+   print(args.client_address, args.mac_address)
+
+   tfiles.emit_signal("file::lookup", addr, args)
+end
 
 function init()
     session.emit_signal("init")
@@ -134,11 +175,12 @@ local function load_hosts()
     local metadata = {}
 
     for _, l in ipairs(db) do
+        local ip = l:match("^[^ ]+")
+
         if l:sub(1,6) == "#meta:" then
             local k, v = decode_metadata(l)
             metadata[k] = v
-        else
-            local ip = l:match("^[^ ]+")
+        elseif ip then
 
             for host in l:gmatch(" ([^ ]+)") do
                 local h = hosts[host] or create_object{class = hosts}
@@ -191,11 +233,45 @@ local function load_eithers()
     return ethers
 end
 
+local i_mac = {
+    lan  = os.getenv("LAN_MAC" ),
+    wan  = os.getenv("WAN_MAC" ),
+    wlan = os.getenv("WLAN_MAC"),
+}
+
+local function add_host(args)
+    --syntax: mac1,mac2..macn,hostname,ipv4,expire
+
+    local host = ""
+
+    for _, mac in ipairs(args.macs or {}) do
+        host = host .. mac .. ","
+    end
+
+    if args.hostname then
+        host = host .. args.hostname .. ","
+    end
+
+    if args.ipv4 then
+        host = host .. args.ipv4 .. ","
+    end
+
+    if args.expire then
+        host = host .. args.expire
+    end
+
+    table.insert(config._buffer, "dhcp-host="..host)
+
+    --TODO all the other options and magic values
+end
+
 return {
-    leases     = leases,
-    hosts      = load_hosts(),
-    tftp_files = tfiles,
-    arp        = {},
-    session    = session,
-    ethers     = load_eithers(),
+    leases        = leases,
+    hosts         = load_hosts(),
+    tftp_files    = tfiles,
+    arp           = {},
+    session       = session,
+    config        = config,
+    ethers        = load_eithers(),
+    add_host      = add_host,
 }

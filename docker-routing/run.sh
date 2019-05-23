@@ -1,16 +1,11 @@
 #!/bin/sh
 
-# WAN (DHCP)
-#ifup eno1
-
-# LAN (static)
-#ifup enp4s0
-
-# Enable the firewall
-#iptables-apply
-
-# Enable routing
-#echo 1 > /proc/sys/net/ipv4/ip_forward
+# Keep the content across many runs.
+if [ -d /persist ]; then
+    rm /etc/hosts /etc/ether
+    ln -s /persist/hosts /etc/hosts
+    ln -s /persist/ether /etc/ether
+fi
 
 # Start the DNS, DHCP and PXE server
-dnsmasq -kdq
+dnsmasq --dhcp-luascript=/rc.lua -kdq

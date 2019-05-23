@@ -34,15 +34,20 @@ gen_procmt = function(path, prefix)
        __newindex = function(_, key, value)
            local f = io.open(prefix..path.."/"..key, "w")
 
-           if not f then
-               print("Could not write to "..prefix..path.."/"..key..
-                     " Either dnsmasq is not running as root or this"..
-                     " container isn't privileged")
-               --assert(false)
-           else
-               f:write(value)
-               f:close()
-           end
+            -- Convert booleans to numbers
+            if type(value) == "boolean" then
+                value = value and 1 or 0
+            end
+
+            if not f then
+                print("Could not write to "..prefix..path.."/"..key..
+                        " Either dnsmasq is not running as root or this"..
+                        " container isn't privileged")
+                --assert(false)
+            else
+                f:write(value)
+                f:close()
+            end
        end
     })
 end
@@ -56,11 +61,13 @@ local function get_interfaces()
         ret[i] = gen_procmt(i, "/sys/class/net/")
     end
 
+    f:close()
+
     return ret
 end
 
 local ip =  {
-    v4 = gen_procmt("v4", "/proc/sys/net/ip"), 
+    v4 = gen_procmt("v4", "/proc/sys/net/ip"),
     v6 = gen_procmt("v6", "/proc/sys/net/ip")
 }
 

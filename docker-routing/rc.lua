@@ -1,78 +1,105 @@
-local unpack = unpack or table.unpack -- Lua 5.1 compat
-
--- Higher level binding to create objects from
--- the callbacks paramaters.
-local router = require("dnsmasq")
-
--- Binding for /proc/sys/net to be able to read and write
--- the config.
-local ip, interfaces = unpack(require("proc_ip"))
-
--- A table with a `lan` and `wan` key and interface name as value.
-local i_name = {}
+local unpack    = unpack or table.unpack -- Lua 5.1 compat
+local router    = require("dnsmasq")
+local interface = require("interface")
+local ip        = unpack(require("proc_ip"))
+local pxe       = require("pxe")
+require("isorepository")
 
 -- A FDQN you own so foo.domain is reserved for the Intranet services.
 local domain = os.getenv("DOMAIN") or "domain.local"
+
+-- Get the server hostname.
+local f = io.open("/etc/hostname")
+local self_hostname = f:read("*all*"):gmatch("([^\n]+)")()
+f:close()
 
 -- Add some \\ so gmatch don't bark on patterns.
 local function escape_uri(uri)
     return uri:gsub("[.]", "\\.")
 end
 
+-- Define the role of each hardware interface (NICs).
+local i_macs = {
+    lan  = os.getenv("LAN_MAC" ),
+    wan  = os.getenv("WAN_MAC" ),
+    wlan = os.getenv("WLAN_MAC"),
+}
+
+-- It is necessary to have at least a local and wide interface.
+assert(i_macs.wan and (i_macs.lan or i_macs.wlan), "Please setup the interfaces")
+
+-- First, given half the hardware on this gateway doesn't
+-- work properly and I don't want to secure it, disable IPv6.
+ip.v6.conf.all.disable_ipv6 = 1
+
+-- Begin to forward packets between interfaces.
+ip.v4.ip_forward = 1
+
+-- The WAN isn't managed by dnsmasq, but needs initialization anyway.
+if i_macs.wan then
+    interface {
+        enabled = true,
+        area    = "wide",
+        mac     = i_macs.wan,
+        role    = "wan",
+        conf    = {
+            -- Disable ping from the outside.
+            icmp_echo_ignore_all = true
+        },
+    }
+end
+
+-- Enable the DHCP server on the LAN and Wifi (WLAN) NIC.
+for i_type, i_mac in pairs { lan = i_macs.lan, wlan = i_macs.wlan } do
+    interface {
+        enabled   = true,
+        area      = "local",
+        role      = i_type,
+        mac       = i_mac,
+        conf      = {
+            -- Allow ping so watchdog scripts can work.
+            icmp_echo_ignore_all = false
+        },
+        -- Share the same range for the Wifi and Wired LAN.
+        ranges_v4 = {{
+            begin_v4   = "192.168.100.1",
+            end_v4     = "192.168.100.250",
+            netmask_v4 = "255.255.255.0",
+            renew      = "72h"
+        }},
+    }
+end
+
+-- Always give an hostname to the router when the domain is set.
+if i_macs.lan and domain and not self_hostname:find("localhost") then
+    router:add_host {
+        ipv4     = "192.168.100.1",
+        hostname = self_hostname.."."..domain,
+        expire   = "infinite",
+        macs     = {
+            i_macs.lan,
+        },
+    }
+end
+
+--#listen-address=::1,127.0.0.1,192.168.100.1
+--router.config.expand_hosts = true
+
+-- Enable the TFTP/PXE server to provision the devices.
+pxe {
+    enabled  = true,
+    root     = "/tftp/",
+    payloads = {"pxelinux.0"},
+}
+
 -- Called *after* the config is applied.
 router.session.connect_signal("init", function()
     print("Configuring the interfaces, please wait...")
 
-    -- First, given half the hardware on this gateway doesn't
-    -- work properly and I don't want to secure it, disable IPv6.
-    ip.v6.conf.all.disable_ipv6 = 1
-
-    -- This Lua file is expected to be used in Docker with some
-    -- variables set by the host when starting the container.
-    local i_mac = {
-        lan  = os.getenv("LAN_MAC" ), 
-        wan  = os.getenv("WAN_MAC" ),
-        wlan = os.getenv("WLAN_MAC"),
-    }
-
-    -- Find the interface names for the Mac addresses
-    for i, conf in pairs(interfaces) do
-        local ma = conf.address:gmatch("([^\n]+)")()
-        assert(ma, "This script expect /sys/class/net to exist")
-
-        for i_type, m in pairs(i_mac) do
-            if m == ma then
-                i_name[i_type] = i
-            end
-        end
-    end
-
-    -- Routing only works with at least 2 interfaces
-    assert(i_name.lan and i_name.wan)
-
-    -- WAN (DHCP)
-    os.execute("ifup "..i_name.wan)
-
-    -- LAN (static)
-    os.execute("ifup "..i_name.lan)
-
     -- Enable the firewall
     os.execute("iptables-apply")
 
-    -- Enable routing between the interfaces
-    ip.v4.ip_forward = 1
-
-    -- Disable ping on the WAN, enable on LAN
-    ip.v6.conf[i_name.wan].icmp_echo_ignore_all = 1
-    ip.v6.conf[i_name.lan].icmp_echo_ignore_all = 0
-
     print("Interfaces configured!")
-end)
-
-router.session.connect_signal("shutdown", function()
-    print("LUA SHUTDOWN")
-
-    --TODO serialize some stuff
 end)
 
 -- If the hostname claims to be in the domain, then bind the address and add

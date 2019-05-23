@@ -1,0 +1,306 @@
+commit c65e394e39db72bba9cf8f668ffed5fe72991565
+Author: Emmanuel Lepage Vallee <elv1313@gmail.com>
+Date:   Wed May 22 23:38:13 2019 -0400
+
+    [WIP] lua: Add a way to configure dnsmasq using scripts.
+
+diff --git a/src/dnsmasq.c b/src/dnsmasq.c
+index e6140b7..d8b262d 100644
+--- a/src/dnsmasq.c
++++ b/src/dnsmasq.c
+@@ -90,9 +90,24 @@ int main (int argc, char **argv)
+   umask(022); /* known umask, create leases and pid files as 0644 */
+  
+   rand_init(); /* Must precede read_opts() */
+-  
++  /* Use a pipe to carry signals and other events back to the event loop
++     in a race-free manner and another to carry errors to daemon-invoking process */
++  safe_pipe(pipefd, 1);
++
++  piperead = pipefd[0];
++  pipewrite = pipefd[1];
++  /* prime the pipe to load stuff first time. */
++  send_event(pipewrite, EVENT_INIT, 0, NULL);
++
++  err_pipe[1] = -1;
++
+   read_opts(argc, argv, compile_opts);
+- 
++
++#ifdef HAVE_LUASCRIPT
++  char **options = fetch_dynamic_config(pipewrite, err_pipe[1]);
++  apply_opts(options);
++#endif
++
+   if (daemon->edns_pktsz < PACKETSZ)
+     daemon->edns_pktsz = PACKETSZ;
+ 
+@@ -524,17 +539,6 @@ int main (int argc, char **argv)
+   
+   data->permitted = data->effective;  
+ #endif
+-
+-  /* Use a pipe to carry signals and other events back to the event loop 
+-     in a race-free manner and another to carry errors to daemon-invoking process */
+-  safe_pipe(pipefd, 1);
+-  
+-  piperead = pipefd[0];
+-  pipewrite = pipefd[1];
+-  /* prime the pipe to load stuff first time. */
+-  send_event(pipewrite, EVENT_INIT, 0, NULL); 
+-
+-  err_pipe[1] = -1;
+   
+   if (!option_bool(OPT_DEBUG))   
+     {
+diff --git a/src/dnsmasq.h b/src/dnsmasq.h
+index ff3204a..0cdbb4b 100644
+--- a/src/dnsmasq.h
++++ b/src/dnsmasq.h
+@@ -1302,6 +1302,7 @@ void flush_log(void);
+ 
+ /* option.c */
+ void read_opts (int argc, char **argv, char *compile_opts);
++void apply_opts(char **options);
+ char *option_string(int prot, unsigned int opt, unsigned char *val, 
+ 		    int opt_len, char *buf, int buf_len);
+ void reread_dhcp(void);
+@@ -1496,6 +1497,10 @@ void queue_tftp(off_t file_len, char *filename, union mysockaddr *peer);
+ void queue_arp(int action, unsigned char *mac, int maclen,
+ 	       int family, union all_addr *addr);
+ int helper_buf_empty(void);
++#ifdef HAVE_LUASCRIPT
++char **fetch_dynamic_config(int event_fd, int err_fd);
++void notify_tftop_lookup(char *filename);
++#endif
+ #endif
+ 
+ /* tftp.c */
+diff --git a/src/helper.c b/src/helper.c
+index 33ba120..de61afa 100644
+--- a/src/helper.c
++++ b/src/helper.c
+@@ -43,7 +43,11 @@ static unsigned char *grab_extradata(unsigned char *buf, unsigned char *end,  ch
+ #define lua_open()     luaL_newstate()
+ #endif
+ 
+-lua_State *lua;
++#if LUA_VERSION_NUM < 520
++#define lua_rawlen(L,i) lua_objlen(L,i)
++#endif
++
++lua_State *lua = NULL;
+ 
+ static unsigned char *grab_extradata_lua(unsigned char *buf, unsigned char *end, char *field);
+ #endif
+@@ -75,6 +79,99 @@ struct script_data
+ static struct script_data *buf = NULL;
+ static size_t bytes_in_buf = 0, buf_size = 0;
+ 
++#ifdef HAVE_LUASCRIPT
++static void lua_create_context(int event_fd, int err_fd)
++{
++  if (daemon->luascript && !lua)
++  {
++    const char *lua_err = NULL;
++    lua = lua_open();
++    luaL_openlibs(lua);
++
++    /* get Lua to load our script file */
++    if (luaL_dofile(lua, daemon->luascript) != 0)
++      lua_err = lua_tostring(lua, -1);
++    else
++      {
++        lua_getglobal(lua, "lease");
++        if (lua_type(lua, -1) != LUA_TFUNCTION)
++          lua_err = _("lease() function missing in Lua script");
++      }
++
++    if (lua_err)
++      {
++        if (option_bool(OPT_NO_FORK) || option_bool(OPT_DEBUG))
++          /* send error to daemon process if no-fork */
++          send_event(event_fd, EVENT_LUA_ERR, 0, (char *)lua_err);
++        else
++          {
++            /* kill daemon */
++            send_event(event_fd, EVENT_DIE, 0, NULL);
++            /* return error */
++            send_event(err_fd, EVENT_LUA_ERR, 0, (char *)lua_err);
++          }
++        _exit(0);
++      }
++  }
++}
++
++char **fetch_dynamic_config(int event_fd, int err_fd)
++{
++  if (daemon->luascript)
++    {
++      lua_create_context(event_fd, err_fd);
++
++      lua_getglobal(lua, "configure");
++      if (lua_type(lua, -1) == LUA_TFUNCTION)
++        {
++          /* be careful, use proper stack index when multiple values exist */
++          int before = lua_gettop(lua);
++          lua_call(lua, 0, 1);
++          int top = lua_gettop(lua);
++
++          if (top >= 1 && lua_type(lua, before) == LUA_TTABLE)
++           {
++             const int len = lua_rawlen(lua, top - before);
++
++             int idx;
++
++             char** ret = malloc((len+1) * sizeof(char*));
++
++             ret[len] = NULL;
++
++             for (idx = 1; idx <= len; idx++)
++               {
++                 lua_rawgeti(lua, top - before - 1, idx );
++                 const char *str = lua_tostring(lua, -1);
++                 ret[idx-1] = strdup(str);
++                 lua_pop(lua, 1);
++               }
++
++             return ret;
++           }
++        }
++    }
++
++    return NULL;
++}
++
++void notify_tftop_lookup(char *filename)
++{
++  if (daemon->luascript)
++    {
++      lua_getglobal(lua, "tftp_lookup");
++      lua_pushstring(lua, filename);
++      lua_newtable(lua);
++      lua_pushstring(lua, daemon->addrbuff);
++      lua_setfield(lua, -2, "client_address");
++      lua_pushstring(lua, daemon->dhcp_buff);
++      lua_setfield(lua, -2, "mac_address");
++      lua_call(lua, 2, 0);
++    }
++}
++
++#endif
++
+ int create_helper(int event_fd, int err_fd, uid_t uid, gid_t gid, long max_fd)
+ {
+   pid_t pid;
+@@ -138,35 +235,8 @@ int create_helper(int event_fd, int err_fd, uid_t uid, gid_t gid, long max_fd)
+ #ifdef HAVE_LUASCRIPT
+   if (daemon->luascript)
+     {
+-      const char *lua_err = NULL;
+-      lua = lua_open();
+-      luaL_openlibs(lua);
+-      
+-      /* get Lua to load our script file */
+-      if (luaL_dofile(lua, daemon->luascript) != 0)
+-	lua_err = lua_tostring(lua, -1);
+-      else
+-	{
+-	  lua_getglobal(lua, "lease");
+-	  if (lua_type(lua, -1) != LUA_TFUNCTION) 
+-	    lua_err = _("lease() function missing in Lua script");
+-	}
+-      
+-      if (lua_err)
+-	{
+-	  if (option_bool(OPT_NO_FORK) || option_bool(OPT_DEBUG))
+-	    /* send error to daemon process if no-fork */
+-	    send_event(event_fd, EVENT_LUA_ERR, 0, (char *)lua_err);
+-	  else
+-	    {
+-	      /* kill daemon */
+-	      send_event(event_fd, EVENT_DIE, 0, NULL);
+-	      /* return error */
+-	      send_event(err_fd, EVENT_LUA_ERR, 0, (char *)lua_err);
+-	    }
+-	  _exit(0);
+-	}
+-      
++      lua_create_context(event_fd, err_fd);
++
+       lua_pop(lua, 1);  /* remove nil from stack */
+       lua_getglobal(lua, "init");
+       if (lua_type(lua, -1) == LUA_TFUNCTION)
+diff --git a/src/option.c b/src/option.c
+index 5debcbc..d5bbd19 100644
+--- a/src/option.c
++++ b/src/option.c
+@@ -4897,6 +4897,45 @@ void reread_dhcp(void)
+ }
+ #endif
+ 
++void apply_opts(char **options)
++{
++  char **arr = options;
++
++  for (; options && options[0]; options++)
++    {
++      char *errmess, *arg;
++      int i = 0;
++      errmess = NULL;
++
++      for (;opts[i].name; i++)
++        {
++          const int len = strlen(opts[i].name);
++          if (strncmp(opts[i].name, options[0], len) == 0)
++            {
++              arg = options[0][len] == '=' ? &options[0][len+1] : NULL;
++              break;
++            }
++        }
++
++      if (!i)
++        errmess = _("bad option");
++      else if (opts[i].has_arg == 0 && arg)
++        errmess = _("extraneous parameter");
++      else if (opts[i].has_arg == 1 && !arg)
++        errmess = _("missing parameter");
++
++      if (errmess || !one_opt(opts[i].val, arg, daemon->namebuff, _("error"), 0, 0))
++      {
++        sprintf(daemon->namebuff + strlen(daemon->namebuff), _(" for %s %s"), opts[i].name, errmess);
++        die("%s", daemon->namebuff, EC_BADCONF);
++      }
++
++      free(options[0]);
++    }
++
++  free(arr);
++}
++
+ void read_opts(int argc, char **argv, char *compile_opts)
+ {
+   size_t argbuf_size = MAXDNAME;
+diff --git a/src/tftp.c b/src/tftp.c
+index 435b216..3ae3dac 100644
+--- a/src/tftp.c
++++ b/src/tftp.c
+@@ -353,13 +353,17 @@ void tftp_request(struct listener *listen, time_t now)
+ 	    }
+ 	}
+ 
++#ifdef HAVE_LUASCRIPT
++      notify_tftop_lookup(filename);
++#endif
++
+       /* cope with backslashes from windows boxen. */
+       for (p = filename; *p; p++)
+ 	if (*p == '\\')
+ 	  *p = '/';
+ 	else if (option_bool(OPT_TFTP_LC))
+ 	  *p = tolower(*p);
+-		
++
+       strcpy(daemon->namebuff, "/");
+       if (prefix)
+ 	{

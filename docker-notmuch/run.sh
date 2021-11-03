@@ -12,6 +12,6 @@ export LUA_CPATH=$LUA_CPATH
 
 # Add (or update) the maildir hooks
 mkdir -p ~/GMail/.notmuch/hooks
-cp hooks/* ~/GMail/.notmuch/hooks
+cp ~/hooks/* ~/GMail/.notmuch/hooks || echo "WARNING: No hooks found"
 
 luajit $HOME/notmuchlua/process.lua

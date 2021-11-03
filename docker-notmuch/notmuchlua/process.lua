@@ -27,13 +27,13 @@ end
 
 filters.path = "mailFilters.xml"
 
-local labels = filters.tags
+local labels = filters.path and filters.tags or {}
 
 -- use: `echo BYE | nc -w0 -Uu ~/query.socket` to quit
 
 server.listen(function(command)
     tui.set_remote_state(command:sub(1, command:len()-1))
-    os.execute("bash -c 'notmuch new > /dev/null 2> /dev/null'")
+    os.execute("bash -c 'notmuch new'") -- > /dev/null 2> /dev/null'")
 
     -- There is nothing to do
     if command:sub(1, 3) ~= "NEW" then return end
@@ -58,16 +58,19 @@ server.listen(function(command)
         m:remove_tag("new")
     end
 
-    for _, query in ipairs(filters.queries) do
-        tui.set_local_state("QUERY "..query.query)
-        local messages = db:get_messages(query.query)
+    if filters.path then
+        for _, query in ipairs(filters.queries) do
+            tui.set_local_state("QUERY "..query.query)
+            local messages = db:get_messages(query.query)
 
-        for _, m in ipairs(messages) do
-            for _, new_tag in diff_tags_iterator(m.tags, query.tags) do
-                m:add_tag(new_tag)
+            for _, m in ipairs(messages) do
+                for _, new_tag in diff_tags_iterator(m.tags, query.tags) do
+                    m:add_tag(new_tag)
+                end
             end
         end
     end
+
     db:close()
 
     tui.set_local_state("IDLE")

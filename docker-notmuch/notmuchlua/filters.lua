@@ -136,6 +136,8 @@ ffi.cdef(c_head)
 local imported = false
 
 local function import_xml(path)
+    if not path then return {} end
+
     -- Create a Lua table out of the XML content
 
     local parse = nil

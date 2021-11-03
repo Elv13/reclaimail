@@ -1,8 +1,5 @@
 local unpack = unpack or table.unpack --lua 5.1 compat
 
---FIXME remove this hack
-local delimiter = "⮀"
-
 -- Mutt crash when the color are not complete, make sure they are
 local function set_color(col, args)
     assert(args._is_color)
@@ -35,14 +32,24 @@ local theme = setmetatable({
 )
 
 -- Generate a powerline section
-local function powerline_section(bar, sec, k, next_offset)
+local function powerline_section(bar, sec, k, next_offset, args)
     local next = bar.left[k+next_offset]
 
-    local st = sec.label .. " ".. sec.section[1].. " "..delimiter.." "
+    local st, regex = nil
 
-    local regex = "[ ]?"..sec.label.."[\\ ]+"..sec.section[2].."[ ]*"
+    if args.direction == "left_to_right" then
+        st = sec.label .. " ".. sec.section[1].. " "..args.delimiter.." "
+    else
+        st = args.delimiter.." "..sec.label .. " ".. sec.section[1].. " "
+    end
 
-    -- Play regex golf to set the right color
+    --if args.last then
+    --    regex = "["..args.delimiter.."]*[ ]?"..sec.label.."[\\ ]+"..sec.section[2].."[ ]*["..args.delimiter.."]*"
+    --else
+        regex = "[ ]?"..sec.label.."[\\ ]+"..sec.section[2].."[ ]*"
+    --end
+
+    -- Play regex golf to set the correct color.
     theme.status = theme.color {
         bg = sec.bg, fg = sec.fg, when = '"'..regex..'"', num = 0
     }
@@ -57,6 +64,9 @@ local function powerline_section(bar, sec, k, next_offset)
         -- If the next part is known, add it to the regex
         delim_regex = delim_regex .. (next and "( "..next.label..")" or "")
 
+    elseif args.direction == "left_to_right" then
+        delim_regex = bar.left_separator.." ("..sec.label.." "..sec.section[2].." )("..bar.left_separator..")"
+        delim_idx = 2
     else
         delim_regex = bar.left_separator.." ("..sec.label.." "..sec.section[2].." )("..bar.left_separator..")"
         delim_idx = 2
@@ -75,11 +85,30 @@ end
 local function gen_powerline(bar)
     local st = ""
     for k, sec in ipairs(bar.left) do
-        st = st .. powerline_section(bar, sec, k, 1)
+        st = st .. powerline_section(bar, sec, k, 1, {
+            delimiter = bar.left_separator,
+            last      = k == #bar.left,
+            direction = "left_to_right",
+        })
     end
     st = st.."%>"..(center and center.fill or " ")
+
+    local center_regex = "("..bar.left_separator..")[^"..bar.right_separator..bar.left_separator.."]*"..bar.right_separator
+
+    -- Highlight the last left delimiter.
+    theme.status = theme.color {
+        bg   = bar.center.bg or "color234",
+        fg   = bar.left[#bar.left].bg, 
+        when = center_regex,
+        --num  = 1
+    }
+
     for k, sec in ipairs(bar.right) do
-        st = st .. powerline_section(bar, sec, k, -1)
+        st = st .. powerline_section(bar, sec, k, -1, {
+            delimiter = bar.right_separator,
+            last      = k == #bar.right,
+            direction = "right_to_left",
+        })
     end
 
     return st

@@ -2,7 +2,7 @@
 local sections = {}
 
 --FIXME remove this hack
-local delimiter = "⮀"
+local delimiter = ""
 
 -- Try to make the statusbar DLS Lua friendly
 sections.status = {
@@ -10,7 +10,7 @@ sections.status = {
     hostname = {"%h", "[0-9]+"}, --Local hostname
     mailbox  = {
         count_new   = {"%b", "[0-9]+"}, --Number of mailboxes with new mail *
-        size        = {"%l", "[0-9]+"}, --Size (in bytes) of the current mailbox *
+        size        = {"%l", "[0-9]+[BKMGT]"}, --Size (in bytes) of the current mailbox *
         description = {"%D", "[0-9]+"}, --Description of the mailbox
         path        = {"%f", "[^"..delimiter.."]+"}, --The full pathname of the current mailbox
     },
@@ -25,7 +25,7 @@ sections.status = {
         new        = {"%n", "[0-9]+"}, --Number of new messages in the mailbox *
         old_unread = {"%o", "[0-9]+"}, --Number of old unread messages *
         postponed  = {"%p", "[0-9]+"}, --Number of postponed messages *
-        percent    = {"%P", "[0-9]+"}, --Percentage of the way through the index
+        percent    = {"%P", "[0-9]+%"}, --Percentage of the way through the index
         read       = {"%R", "[0-9]+"}, --Number of read messages *
         tagged     = {"%t", "[0-9]+"}, --Number of tagged messages *
         unread     = {"%u", "[0-9]+"}, --Number of unread messages *

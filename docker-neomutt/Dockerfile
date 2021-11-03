@@ -1,4 +1,4 @@
-FROM debian:stretch-slim
+FROM debian:buster-slim
 MAINTAINER Emmanuel Lepage Vallee <elv1313+bugs@gmail.com>
 
 # Install dependencies
@@ -7,7 +7,9 @@ RUN sed 's/deb /deb-src /' /etc/apt/sources.list >> /etc/apt/sources.list
 RUN apt -qq update --fix-missing -y
 RUN apt build-dep mutt -y
 RUN apt install -y --no-install-recommends \
-    ca-certificates unzip wget lua5.3-dev libxml2-utils  locales luajit -y
+    ca-certificates unzip wget lua5.3-dev \
+    libxml2-utils  locales luajit libnotmuch-dev \
+    libsasl2-modules-gssapi-heimdal -y
 
 # Support UTF-8
 ADD locale.gen /etc/

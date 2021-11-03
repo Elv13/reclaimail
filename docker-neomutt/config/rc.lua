@@ -19,7 +19,7 @@ option.sendmail    = "/usr/bin/msmtp"
 
 -- Maildir settings
 option.mbox_type   = "Maildir"
-option.folder      = "~/Mail/"
+option.folder      = maildir
 option.spoolfile   = "+INBOX"
 option.mbox        = "+[Gmail]/All Mail"
 option.postponed   = "+[Gmail]/Drafts"
@@ -67,7 +67,7 @@ theme.indicator  = theme.color { fg = "black", bg = "cyan"}
 theme.markers    = theme.color { fg = "brightred"}
 theme.quoted     = theme.color { fg = "green"}
 theme.signature  = theme.color { fg = "cyan"}
-theme.status     = theme.color { bg = "color232"}
+theme.status     = theme.color { bg = "color234"}
 theme.tilde      = theme.color { fg = "blue"}
 theme.tree       = theme.color { fg = "red"}
 
@@ -79,9 +79,10 @@ theme.quoted3 = theme.color {bg = "color235" }
 
 -- Index background color
 theme.index = {
-    theme.color { bg = "color52" , when = "~N"},
-    theme.color { bg = "color52" , when = "~U"},
+    theme.color { bg = "color69" , when = "~N"},
+    theme.color { bg = "color69" , when = "~U"},
     theme.color { fg = "red"     , when = "~P"},
+    --theme.color { fg = "color84" , when = "~r"},
     theme.color { fg = "red"     , when = "~D"},
     theme.color { fg = "magenta" , when = "~T"}
 }
@@ -89,6 +90,9 @@ theme.index = {
 ------------------------------------
 --      Virtual mailboxes         --
 ------------------------------------
+
+-- Make every action apply to thread, not mails.
+option.auto_tag = true
 
 -- Notmuch
 notmuch.default_uri="notmuch://"..maildir..""
@@ -120,64 +124,77 @@ keybindings.add {
     keybindings.macro {{"index"}, {}, "t", "<vfolder-from-query>tag:", "Select tag"},
 }
 
+keybindings.add {
+    keybindings.macro {{"index"}, {}, "S", "<tag-thread><tag-prefix><save-message>=done<enter>", "Archive thread"},
+}
+
 ------------------------------------
 --           Status bar           --
 ------------------------------------
 
 -- The bar displayed when the email index is displayed
 local status_bar = {
-    left_separator  = "⮀",
-    right_separator = "⮂",
+    left_separator  = "",
+    right_separator = "",
     left = {
         {
-            label = "Folder",
+            label = " Folder",
             section = sections.status.mailbox.path,
-            bg = "color124",
+            fg = "color226",
+            bg = "color20",
         },
         {
             label = "Total",
             section = sections.status.mails.count,
-            bg = "color78",
-            fg = "color0",
+            bg = "color226",
+            fg = "color20",
 
         },
         {
             label = "Unread",
             section = sections.status.mails.unread,
             bg = "color93",
+            fg = "color16"
         }
     },
     center = {
-        fill = " "
+        fill = " ",
+        bg   = "color234",
     },
     right = {
         {
-            label = "hello",
-            section = sections.status.mails.percent,
+            label = "Size",
+            section = sections.status.mailbox.size,
             bg = "color93",
+        },
+        {
+            label = "Progress",
+            section = sections.status.mails.percent,
+            bg = "color226",
+            fg = "color20",
         }
     },
 }
 
 -- The bar displayed when an email is being viewed
 local info_bar = {
-    left_separator  = "⮀",
-    right_separator = "⮂",
+    left_separator  = "",
+    right_separator = "",
     left = {
         {
-            label = "Box",
+            label = " Box:",
             bg = "color124",
             fg = "color0",
             section = sections.index.line_count
         },
         {
-            label = "From",
+            label = "From:",
             bg = "color78",
             fg = "color0",
             section = sections.index.author_address
         },
         {
-            label = "Date",
+            label = "Date:",
             section = sections.index.local_time,
             bg = "color93",
         }
@@ -186,10 +203,18 @@ local info_bar = {
         fill = " "
     },
     right = {
-        label = " of ",
-        bg = "color78",
-        fg = "color0",
-        section = sections.index.line_count
+        {
+            label = "Entry",
+            bg = "color99",
+            fg = "color0",
+            section = sections.index.thread_number
+        },
+        {
+            label = " of ",
+            bg = "color78",
+            fg = "color0",
+            section = sections.index.thread_count
+        }
     },
 }
 

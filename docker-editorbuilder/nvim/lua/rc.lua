@@ -10,6 +10,7 @@ local vscode = require( "vscode" )
 
 -- Little helper functions to execute commands from insert mode
 local function cmd2(command) return function() vim.api.nvim_command(command) end end
+local function norm(command) return function() vim.api.nvim_command("normal! "..command) end end
 
 --------------------------------------------------------------------
 --                     PLUGIN VARIABLES                           --
@@ -24,6 +25,10 @@ sugar.session.netrw_altfile = 1
 --------------------------------------------------------------------
 --                          OPTIONS                               --
 --------------------------------------------------------------------
+
+-- Sane selection
+sugar.session.options.selection = "exclusive"
+sugar.session.options.virtualedit = "onemore"
 
 sugar.session.options.t_Co = "256"
 
@@ -92,9 +97,12 @@ global_keymap["<C-w>"] = nano.search
 global_keymap["<C-f>"] = nano.search
 modes.normal.keymap["<esc>"] = cmd2 "silent noh"
 modes.visual.keymap["<esc>"] = "<esc>"
+modes.visual.keymap["n"] = nano.search_selected
+modes.visual.keymap["N"] = "N<esc>"
 
 -- map CTRL+R to search and replace
 global_keymap["<C-r>"] = nano.replace
+modes.visual.keymap['r'] = nano.replace_selected
 
 -- CTRL+_ goto line (insert mode)
 global_keymap["<C-_>"] = nano.move_to_line
@@ -102,7 +110,7 @@ global_keymap["<C-g>"] = nano.move_to_line
 
 -- CTRL+X to save and quit (do not use in visual mode, it gets annoying
 -- to close rather tham cut using reflexes).
-for _, m in ipairs {modes.insert, modes.normal, modes.command} do
+for _, m in ipairs {modes.insert, modes.normal, modes.command, modes.visual} do
     m.keymap["<C-x>"] = nano.close_buffer
 end
 
@@ -110,19 +118,24 @@ end
 global_keymap["<C-k>"] = nano.cut_and_yank_line
 
 -- CTRL+BackSpace: remove word to the left
---modes.insert.keymap["<C-BS>"] = norm "hdvb"
+modes.insert.keymap["<C-H>"] = norm "db" -- Konsole
+modes.normal.keymap["<C-H>"] = "dvb" -- konsole
 --modes.insert.keymap <C-h> <esc>dvbi
---map <C-h> <esc>dvbi
-modes.normal.keymap ["<C-BS>"] = "dvbi"
-modes.command.keymap["<C-Bs>"] = "<C-w>"
+--modes.normal.keymap ["<C-BS>"] = "dvbi"
+--modes.command.keymap["<C-Bs>"] = "<C-w>"
 
 -- Undo
 global_keymap["<C-z>"  ] = sugar.commands.undo
 global_keymap["<C-A-z>"] = sugar.commands.redo
 
 -- Move line up and down
-global_keymap["<C-S-Up>"  ] = kate.move_lines_up
-global_keymap["<C-S-Down>"] = kate.move_lines_down
+modes.normal.keymap["<C-S-Up>"  ] = kate.move_lines_up
+modes.insert.keymap["<C-S-Up>"  ] = kate.move_lines_up
+modes.insert.keymap["<C-S-Down>"] = kate.move_lines_down
+--modes.normal.keymap["<C-S-Down>"] = kate.move_lines_down
+
+modes.visual.keymap["<C-S-Up>"  ] = ":m -2<CR>gv" -- kate.move_lines_up
+modes.visual.keymap["<C-S-Down>"  ] = ":m '>+1<CR>gv" -- kate.move_lines_up
 
 -- Duplicate lines
 global_keymap["<C-A-Up>"  ] = kate.duplicate_lines_up
@@ -154,23 +167,39 @@ modes.visual.keymap["<S-Right>"] = "<Right>"
 modes.normal.keymap["<BS>" ] = "dh"
 modes.visual.keymap["<BS>" ] = kate.backspace
 modes.visual.keymap["d"    ] = kate.cut
-modes.visual.keymap["<C-x>"] = kate.cut
+--modes.visual.keymap["<C-x>"] = kate.cut
 
 -- Select next word
+--TODO "iw" is very cool, but doesn't work backward the same way it
+--works forward. `iskeyword` needs to be modified?
 modes.normal.keymap["<C-S-Right>"] = "vw"
 modes.insert.keymap["<C-S-Right>"] = "<esc>vw"
-modes.normal.keymap["<C-S-Left>" ] = "v<C-Left>"
-modes.insert.keymap["<C-S-Left>" ] = "<esc>v<C-Left>"
+modes.normal.keymap["<C-S-Left>" ] = "vb"
+modes.insert.keymap["<C-S-Left>" ] = "<esc>lv<C-Left>"
 modes.visual.keymap["<C-S-Left>" ] = "<C-Left>"
-modes.visual.keymap["<C-S-Right>"] = "<C-Right>"
+modes.visual.keymap["<C-S-Right>"] = "w"
+modes.visual.keymap["<C-Right>"  ] = "w"
+
+--modes.visual.keymap["<C-Left>"   ] = "b"
+
+-- Move to next word. --FIXME
+modes.normal.keymap["<C-Right>"  ] = "w" -- yes, the iskeyword is different
+modes.normal.keymap["<C-Left>"   ] = "b"
+-- modes.insert.keymap["<C-Right>"] = norm "iw"
+-- modes.normal.keymap["<C-Right>"] = "iw"
+-- modes.insert.keymap["<C-Left>" ] = norm "b"
+-- modes.normal.keymap["<C-Left>" ] = "b"
+
 
 -- Select line
 modes.insert.keymap["<S-End>" ] = "<esc>v<End>"
 modes.insert.keymap["<S-Home>"] = "<esc>v<Home>"
-modes.visual.keymap["<S-Home>"] = kate.select_to_home
-modes.visual.keymap["<Home>"  ] = kate.select_to_home
-modes.visual.keymap["<S-End>" ] = kate.select_to_end
-modes.visual.keymap["<End>"   ] = kate.select_to_end
+modes.visual.keymap["<S-Home>"] = "^" --kate.select_to_home
+modes.visual.keymap["<Home>"  ] = "^"
+modes.visual.keymap["<S-End>" ] = "$" --kate.select_to_end
+modes.visual.keymap["<End>"   ] = "$"
+modes.normal.keymap["<S-End>" ] = "v$"
+modes.normal.keymap["<S-Home>"] = "v^"
 
 -- Easy buffer switch
 global_keymap["<C-T>"    ] = kate.previous_buffer
@@ -188,6 +217,8 @@ modes.normal.keymap["<F2>" ] = vscode.buf_nav
 -- Single command
 global_keymap["<F14>"] = "<C-o>"
 global_keymap["<F2>" ] = "<C-o>"
+modes.visual.keymap["<F14>"] = "<esc><C-o>"
+modes.visual.keymap["<F2>"] = "<esc><C-o>"
 
 -- New buffer
 global_keymap["<C-N>"] = kate.new
@@ -210,7 +241,7 @@ modes.normal.keymap["p"    ] = kate.paste
 modes.normal.keymap["<Insert>"] = function() end
 
 -- Return to INSERT from VISUAL.
-modes.visual.keymap["i"] = "<esc>i"
+--modes.visual.keymap["i"] = "<esc>i"
 
 -- Allow <CR> in NORMAL mode.
 modes.normal.keymap["<CR>"] = "i<CR><esc>"
@@ -218,55 +249,20 @@ modes.normal.keymap["<CR>"] = "i<CR><esc>"
 -- Fix PageUp to behave like veryone (including Vim PageDown)
 global_keymap["<PageUp>"] = nano.page_up
 
--- Test
+-- Match bracket
+modes.normal.keymap["\\"] = "%"
 
-global_keymap["<C-b>"] = function()
-    -- sugar.session.current_window.selection_begin.column = 0
-    sugar.session.current_window.cursor.column = 10
-    sugar.session.current_window.cursor.row = 10
-    -- sugar.session.current_window.selection_begin.row = 22
-    -- sugar.session.current_window.selection_begin.column = 22
-
-    --sugar.session.current_window.options.laststatus = 0
-    --sugar.session.current_window.options.statusline = "lol\nbar"
-    --
-    print(sugar.global_functions.setpos("'>", {
-        0,--self._private.window and self._private.window._private.handle or 0,
-        22,
-        22,
-        0,
-        0
-    }))
-
-    print(sugar.global_functions.setpos("'<", {
-        0,--self._private.window and self._private.window._private.handle or 0,
-        33,
-        33,
-        0,
-        0
-    }))
-
-
-end
-
-
-
-local function ertertert()
-    local stack = require("dialog._stack")
-    local input = require("dialog.components.input")
-    local frame = require("dialog.components.frame")
-    local s = stack{height=3, width=80}
-    local f = frame(80, 3)
-    f:add_label("Buffer switcher", "center", "top")
-    f.layout.widget = input(40, 1, "test!")
-    s:add_widget(f)
-
-    f.layout.widget.keymap["<esc>"] = function(self) self:stop() end
-
-    s:print()
-
-    f.layout.widget.keymap:grab()
-end
+-- Select block.
+modes.visual.keymap['"'] = "i'"
+modes.visual.keymap["'"] = 'i"'
+modes.visual.keymap[','] = "<esc>F,lvf,h"
+modes.visual.keymap['.'] = "<esc>F.lvf.h"
+modes.visual.keymap['('] = "i("
+modes.visual.keymap[')'] = "i("
+modes.visual.keymap['['] = "i["
+modes.visual.keymap[']'] = "i["
+modes.visual.keymap['{'] = "i{"
+modes.visual.keymap['}'] = "i}"
 
 -- Add a color
 local function add_highlight(args)

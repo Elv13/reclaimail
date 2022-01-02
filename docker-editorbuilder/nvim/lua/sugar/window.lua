@@ -41,13 +41,35 @@ end
 -- @property selected_text
 
 function window_class:get_selected_text()
-    local sel_start, sel_end = self.selection_begin.row, self.selection_end.row
-    sel_start, sel_end = math.min(sel_start, sel_end), math.max(sel_start, sel_end)
+    if vim.api.nvim_get_mode().mode ~= "v" then return nil end
 
-    local ret = self.current_buffer:get_line_range(sel_start-1, sel_end)
+    local pos1 = vim.fn.getpos('v')
+    local pos2 = vim.fn.getpos('.')
+    local start  = { pos1[2] - 1, pos1[3] - 1 + pos1[4] }
+    local finish = { pos2[2] - 1, pos2[3] - 1 + pos2[4] }
+    local buf = self.current_buffer
 
-    local len = vim.str_utfindex(sugar.session.current_window.current_line)
-    --FIXME/TODO
+    if not buf then return end
+
+    local lines = buf:get_line_range(start[1], finish[1]+1)
+
+    if #lines == 0 then return end
+
+    if #lines == 1 then
+        return  lines[1]:sub(start[2] + 1, finish[2])
+    else
+        local ret = {}
+
+        table.insert(ret, table.remove(lines,1):sub(start[2]+1, #lines[1]))
+
+        local last = table.remove(lines,#lines):sub(1, finish[2]+1)
+
+        for _, line in ipairs(lines) do
+            table.insert(ret, line)
+        end
+
+        return table.concat(ret, "\n")
+    end
 end
 
 function window_class:get_cursor()
@@ -60,7 +82,13 @@ end
 -- @method pop_selection
 
 function window_class:pop_selection()
-    assert(false) --TODO
+    if vim.api.nvim_get_mode().mode ~= "v" then return nil end
+
+    local ret = self.selected_text
+
+    vim.api.nvim_input('<BS>')
+
+    return ret
 end
 
 --- Remove the selected lines and return the text.
@@ -72,6 +100,7 @@ function window_class:pop_selected_lines()
 
     local ret = self.current_buffer:get_line_range(sel_start-1, sel_end)
     self.current_buffer:set_line_range(sel_start-1, sel_end-1, {}, false)
+
     return ret
 end
 

@@ -213,16 +213,7 @@ end
 -- Move the selected (or current) line up.
 function module.move_lines_up()
     if sugar.session.mode == "v" then
-        local sel_begin = sugar.session.current_window.selection_begin
-        local sel_end   = sugar.session.current_window.selection_end
-
-        local bc, ec = sel_begin.column, sel_end.column
-
-        local row_begin, row_end = math.min(sel_begin.row, sel_end.row), math.max(sel_begin.row, sel_end.row)
-
-        vim.api.nvim_command(row_begin..",".. row_end .."move "..(row_begin-2))
-        --sel_begin.row, sel_begin.column = row_begin -1, bc
-        --sel_end.row, sel_end.column = row_end-1, ec
+        vim.api.nvim_input(":m -2<CR>gv")
     else
         vim.api.nvim_command("move -2")
     end
@@ -232,16 +223,7 @@ end
 function module.move_lines_down()
     local win = sugar.session.current_window
     if sugar.session.mode == "v" then
-        local sel_begin = win.selection_begin
-        local sel_end   = win.selection_end
-
-        local bc, ec = sel_begin.column, sel_end.column
-
-        local row_begin, row_end = math.min(sel_begin.row, sel_end.row), math.max(sel_begin.row, sel_end.row)
-
-        vim.api.nvim_command(row_begin..",".. row_end .."move "..(row_end+1))
-        --sel_begin.row, sel_begin.column = row_begin -1, bc
-        --sel_end.row, sel_end.column = row_end-1, ec
+        vim.api.nvim_input(":m '>+1<CR>gv")
     else
         local lc = win.current_buffer.line_count
         local cur_line = win.cursor.row
@@ -313,21 +295,23 @@ end
 
 -- Paste correctly depending on the mode.
 function module.paste()
-    vim.api.nvim_command("normal! P")
+    vim.api.nvim_command("normal! Pl")
 end
 
 local function delete_selection_common(keep)
     if sugar.session.mode == "v" then
         local deleter = keep and 'd' or '"_d'
-        print("foo", deleter)
 
         local win = sugar.session.current_window
 
-        if win.cursor.column >= win.current_line_lenght then
+        if win.cursor.column > win.current_line_lenght + 1 then
             sugar.normal('h'..deleter)
         else
             sugar.normal(deleter)
         end
+
+        -- Return to input mode.
+        vim.api.nvim_input("<esc>i")
     end
 end
 

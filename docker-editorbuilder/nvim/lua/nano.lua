@@ -100,6 +100,15 @@ function module.search()
     end
 end
 
+function module.search_selected()
+    if sugar.session.mode ~= "v" then return end
+
+    local txt = sugar.session.current_window.selected_text:gsub("/", "\\/")
+    local ret, err = pcall(vim.api.nvim_command, "/"..txt)
+
+    vim.api.nvim_input("<esc>n")
+end
+
 --- Search and replace without idiotic magic.
 -- no more dozen of backslashes per minute...
 function module.replace()
@@ -115,8 +124,22 @@ function module.replace()
 
     local rep = sugar.input.prompt("Replace " ..str.." with: "):gsub("/", "\\/")
 
+    vim.api.nvim_input("<cmd>,$s/\\V"..str.."/"..rep.."/gc<cr>")
+end
 
-    vim.api.nvim_input("<cmd>%s/\\V"..str.."/"..rep.."/gc<cr>")
+function module.replace_selected()
+    local word = sugar.session.current_window.selected_text:gsub("/", "\\/")
+
+    if #word == 0 then
+        sugar.display.warning('ERROR: The selection is empty!')
+        return
+    end
+
+    print("'"..word.."'")
+
+    local rep = sugar.input.prompt("Replace " ..word.." with: "):gsub("/", "\\/")
+
+    vim.api.nvim_input("<esc><esc>:,$s/\\V"..word.."/"..rep.."/gc<cr>")
 end
 
 -- Move to a line (more safely than `<esc>:`).

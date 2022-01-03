@@ -7,6 +7,8 @@ local session = require("sugar.session")
 local window  = require("sugar.window")
 local buffer  = require("sugar.buffer")
 
+local global_signals = {}
+
 module.session = session.get_session()
 module.window  = window
 module.buffer  = buffer
@@ -83,7 +85,13 @@ function module.connect_signal(name, callback)
             end
         end
 
-        module.commands.autocmd(command, "*", "lua", gname, "()")
+        local success = pcall(module.commands.autocmd, command, "*", "lua", gname, "()")
+
+        -- Allow the config itself to have global signals.
+        if not success then
+            global_signals[name] = global_signals[name] or {}
+            table.insert(global_signals[name], callback)
+        end
 
         global_counter = global_counter + 1
     end
@@ -94,7 +102,7 @@ end
 function module.emit_signal(name, ...)
     local command = get_command(name)
 
-    for _, cb in ipairs(autocmd[command] or {}) do
+    for _, cb in ipairs(autocmd[command] or global_signals[name]) do
         cb(...)
     end
 end

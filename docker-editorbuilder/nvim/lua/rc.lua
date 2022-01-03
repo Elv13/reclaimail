@@ -45,18 +45,33 @@ sugar.session.options.hidden = true
 --sugar.session.options.notermguicolors = true -- rejected
 
 local default_win = sugar.session.current_window
+local has_numbers = true
 
-default_win.options.number = true
-default_win.options.relativenumber = true
+default_win.options.number = has_numbers
+default_win.options.relativenumber = has_numbers
 
 local relative_modes = {
     n = true,
     v = true,
 }
 
+local function toggle_numbers()
+    has_numbers = not has_numbers
+
+    if not has_numbers then
+        default_win.options.number = false
+        default_win.options.relativenumber = false
+    else
+        default_win.options.number = true
+        default_win.options.relativenumber = relative_modes[sugar.session.mode] or false
+    end
+end
+
 -- Use relative or absolute numbers depending on the mode.
 local function set_number_absolute()
-    default_win.options.relativenumber = relative_modes[sugar.session.mode] or false
+    if has_numbers then
+        default_win.options.relativenumber = relative_modes[sugar.session.mode] or false
+    end
 end
 
 -- Connect to some global signals to detect when the mode changes.
@@ -64,6 +79,17 @@ for _, sig in ipairs { "buf_enter", "focus_gained", "insert_leave",
                        "buf_leave", "focus_lost"  , "insert_enter" } do
     sugar.connect_signal(sig, set_number_absolute)
 end
+
+sugar.connect_signal("mode_change", set_number_absolute)
+
+-- Hack for `noremap <c-o>` to work properly...
+sugar.connect_signal("force_absolute", function()
+    sugar.schedule.delayed(function()
+        if has_numbers then
+            default_win.options.relativenumber = true
+        end
+    end)
+end)
 
 --------------------------------------------------------------------
 --                           KEYMAP                               --
@@ -91,6 +117,9 @@ global_keymap["<C-s>"] = nano.save
 
 -- CTRL+o to Open
 global_keymap["<C-o>"] = kate.open
+
+-- Toggle line numbers.
+global_keymap["<F10>"] = toggle_numbers
 
 -- CTRL+W to search (insert mode)
 global_keymap["<C-w>"] = nano.search
@@ -215,10 +244,10 @@ modes.normal.keymap["<F14>"] = vscode.buf_nav
 modes.normal.keymap["<F2>" ] = vscode.buf_nav
 
 -- Single command
-global_keymap["<F14>"] = "<C-o>"
-global_keymap["<F2>" ] = "<C-o>"
-modes.visual.keymap["<F14>"] = "<esc><C-o>"
-modes.visual.keymap["<F2>"] = "<esc><C-o>"
+modes.insert.keymap["<F14>"] = "<C-o>:lua require('sugar').emit_signal('force_absolute')<CR><C-o>"
+modes.insert.keymap["<F2>" ] = "<C-o>:lua require('sugar').emit_signal('force_absolute')<CR><C-o>"
+modes.visual.keymap["<F14>"] = "<esc><esc><C-o>"
+modes.visual.keymap["<F2>"] = "<esc><esc><C-o>"
 
 -- New buffer
 global_keymap["<C-N>"] = kate.new
@@ -241,7 +270,8 @@ modes.normal.keymap["p"    ] = kate.paste
 modes.normal.keymap["<Insert>"] = function() end
 
 -- Return to INSERT from VISUAL.
---modes.visual.keymap["i"] = "<esc>i"
+modes.visual.keymap["i"] = "<esc>i"
+modes.normal.keymap["i"] = function() sugar.commands.startinsert() end
 
 -- Allow <CR> in NORMAL mode.
 modes.normal.keymap["<CR>"] = "i<CR><esc>"
@@ -355,6 +385,8 @@ line_number_color['Confirm'   ] = line_number_color.Normal
 line_number_color['Shell'     ] = line_number_color.Normal
 line_number_color['Terminal'  ] = line_number_color.Normal
 
+local prev_mode = nil
+
 -- Change the line number bar color and relative_ln depending on the mode
 local function update_numbar(mode)
     if not mode then return end
@@ -413,8 +445,7 @@ local function update_numbar(mode)
         vim.api.nvim_command("redraw!")
     end))
 
-    -- Use relative number for everything but insert mode
-    sugar.session.options.relativenumber = mode ~= "Insert"
+    --set_number_absolute()
 end
 
 add_highlight {
@@ -428,8 +459,6 @@ add_highlight {
     ctermfg = 241,
     ctermbg = 28,
 }
-
-local prev_mode = ""
 
 local left_delim, right_delim = "", ""
 
@@ -484,6 +513,7 @@ function status_update_callback(mode_raw)
     local mode = mode_names[mode_raw:gmatch("[ ]*([^ ]+)")()] or "Normal"
 
     if prev_mode ~= mode then
+        sugar.emit_signal("mode_change")
         update_numbar(mode)
         prev_mode = mode
     end

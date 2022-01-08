@@ -4,9 +4,10 @@ local modes  = require( "sugar.modes" )
 local keymap = require( "sugar.keymap")
 
 -- Compat layer to use features/behavior I like from other editors.
-local nano   = require( "nano"   )
-local kate   = require( "kate"   )
-local vscode = require( "vscode" )
+local nano      = require( "nano"      )
+local kate      = require( "kate"      )
+local vscode    = require( "vscode"    )
+local selection = require( "selection" )
 
 -- Little helper functions to execute commands from insert mode
 local function cmd2(command) return function() vim.api.nvim_command(command) end end
@@ -127,7 +128,9 @@ global_keymap["<C-f>"] = nano.search
 modes.normal.keymap["<esc>"] = cmd2 "silent noh"
 modes.visual.keymap["<esc>"] = "<esc>"
 modes.visual.keymap["n"] = nano.search_selected
-modes.visual.keymap["N"] = "N<esc>"
+modes.visual.keymap["N"] = function() nano.search_selected(true) end
+modes.visual.keymap["m"] = function() nano.search_selected(true) end
+modes.normal.keymap["m"] = "N"
 
 -- map CTRL+R to search and replace
 global_keymap["<C-r>"] = nano.replace
@@ -202,10 +205,10 @@ modes.visual.keymap["d"    ] = kate.cut
 --TODO "iw" is very cool, but doesn't work backward the same way it
 --works forward. `iskeyword` needs to be modified?
 modes.normal.keymap["<C-S-Right>"] = "vw"
-modes.insert.keymap["<C-S-Right>"] = "<esc>vw"
+modes.insert.keymap["<C-S-Right>"] = "<esc>lvw" --FIXME need a function to check for ^ and $
 modes.normal.keymap["<C-S-Left>" ] = "vb"
-modes.insert.keymap["<C-S-Left>" ] = "<esc>lv<C-Left>"
-modes.visual.keymap["<C-S-Left>" ] = "<C-Left>"
+modes.insert.keymap["<C-S-Left>" ] = "<esc>lvb"
+modes.visual.keymap["<C-S-Left>" ] = "b"
 modes.visual.keymap["<C-S-Right>"] = "w"
 modes.visual.keymap["<C-Right>"  ] = "w"
 
@@ -221,14 +224,14 @@ modes.normal.keymap["<C-Left>"   ] = "b"
 
 
 -- Select line
-modes.insert.keymap["<S-End>" ] = "<esc>v<End>"
-modes.insert.keymap["<S-Home>"] = "<esc>v<Home>"
+modes.insert.keymap["<S-End>" ] = "<esc>lv$"
+modes.insert.keymap["<S-Home>"] = "<esc>lv^"
 modes.visual.keymap["<S-Home>"] = "^" --kate.select_to_home
 modes.visual.keymap["<Home>"  ] = "^"
 modes.visual.keymap["<S-End>" ] = "$" --kate.select_to_end
 modes.visual.keymap["<End>"   ] = "$"
 modes.normal.keymap["<S-End>" ] = "v$"
-modes.normal.keymap["<S-Home>"] = "v^"
+modes.normal.keymap["<S-Home>"] = "lv^"
 
 -- Easy buffer switch
 global_keymap["<C-T>"    ] = kate.previous_buffer
@@ -271,7 +274,7 @@ modes.normal.keymap["<Insert>"] = function() end
 
 -- Return to INSERT from VISUAL.
 modes.visual.keymap["i"] = "<esc>i"
-modes.normal.keymap["i"] = function() sugar.commands.startinsert() end
+--modes.normal.keymap["i"] = function() sugar.commands.startinsert() end
 
 -- Allow <CR> in NORMAL mode.
 modes.normal.keymap["<CR>"] = "i<CR><esc>"
@@ -283,16 +286,30 @@ global_keymap["<PageUp>"] = nano.page_up
 modes.normal.keymap["\\"] = "%"
 
 -- Select block.
-modes.visual.keymap['"'] = "i'"
-modes.visual.keymap["'"] = 'i"'
-modes.visual.keymap[','] = "<esc>F,lvf,h"
-modes.visual.keymap['.'] = "<esc>F.lvf.h"
-modes.visual.keymap['('] = "i("
-modes.visual.keymap[')'] = "i("
-modes.visual.keymap['['] = "i["
-modes.visual.keymap[']'] = "i["
-modes.visual.keymap['{'] = "i{"
-modes.visual.keymap['}'] = "i}"
+for mode, prefix in pairs {normal = "v", visual = ""} do
+    modes[mode].keymap['"'] = prefix.."i'"
+    modes[mode].keymap["'"] = prefix..'i"'
+    modes[mode].keymap["`"] = prefix..'i`'
+    modes[mode].keymap[','] = "<esc>F,lvf,h"
+    modes[mode].keymap['.'] = "<esc>F.lvf.h"
+    modes[mode].keymap['('] = prefix.."i("
+    modes[mode].keymap[')'] = prefix.."i("
+    modes[mode].keymap['['] = prefix.."i["
+    modes[mode].keymap[']'] = prefix.."i["
+    modes[mode].keymap['{'] = prefix.."i{"
+    modes[mode].keymap['}'] = prefix.."i}"
+
+    -- 'a' is close to caps-lock, which is assigned to C-o somewhere else
+    -- in this file. This is an "express" way to select to current word.
+    modes[mode].keymap['a'] = prefix.."iw"
+end
+
+modes.normal.keymap['<Space>'] = selection.select_current_construct
+modes.visual.keymap['<Space>'] = selection.select_current_construct
+
+-- Jump to previous/next location.
+modes.normal.keymap["-"] = "g;"
+modes.normal.keymap["="] = "g,"
 
 -- Add a color
 local function add_highlight(args)
@@ -460,6 +477,13 @@ add_highlight {
     ctermbg = 28,
 }
 
+--FIXME for some reason only works in init.vim?
+-- add_highlight {
+--     name    = "MsgArea",
+--     ctermfg = 202,
+--     ctermbg = 236
+-- }
+
 local left_delim, right_delim = "", ""
 
 local function add_color_section(ret, text, color_idx, last, left_or_right)
@@ -571,17 +595,41 @@ function tab_update_callback(mode_raw, buf_num)
     local buf = sugar.session.current_window.current_buffer
     local cur = buf._private.handle
 
+    local names, total = {}, 0
+
+    -- Make 2 passes in case it needs extra cropping.
     for _, buf in ipairs(bufs) do
         local name = rawget(buf, "short_file_name") or buf.file_name
-        name = name == "" and "<Empty>" or name
-        if buf._private.handle ~= cur then
-            ret = ret .. "| " .. (rawget(buf, "short_file_name") or name) .. " "
-        else
-            ret = ret .. "|%#LineNrInvert# " .. (rawget(buf, "short_file_name") or name).." %#LineNr#"
+
+        total = total + vim.str_utfindex(name, #name)
+
+        names[buf] = name
+    end
+
+    local kw = "TODO"..sugar.session.current_window.width.." "..total --sugar.session.options.iskeyword
+    local suffix = " %= %#TopStatusInvert#%#TopStatus# %f  "..kw.."  NeoVIM "
+
+    total = total + vim.str_utfindex(suffix, #suffix)
+
+    -- The "5" is to account for up to five figure of line count prefix.
+    local crop = sugar.session.current_window.width < total + 5
+
+    -- Further reduce the size.
+    if crop then
+        for buf, name in pairs(names) do
+            names[buf] = name:match("([^/]*)$") or name
         end
     end
 
-    local kw = "TODO" --sugar.session.options.iskeyword
+    for _, buf in ipairs(bufs) do
+        local name = names[buf]
+        name = name == "" and "<Empty>" or name
+        if buf._private.handle ~= cur then
+            ret = ret .. "| " .. name .. " "
+        else
+            ret = ret .. "|%#LineNrInvert# " .. name .." %#LineNr#"
+        end
+    end
 
     -- Add some +++ to align the tabs with the window content
     local lc,prefix = buf.line_count/100, "   "
@@ -590,7 +638,11 @@ function tab_update_callback(mode_raw, buf_num)
         lc = lc / 10
     end
 
-    print("%#LineNr#"..prefix..ret.." %= %#TopStatusInvert#%#TopStatus# %f  "..kw.."  NeoVIM  ")
+    if not crop then
+        print("%#LineNr#"..prefix..ret..suffix)
+    else
+        print("%#LineNr#"..prefix..ret)
+    end
 end
 
 sugar.session.options.statusline = "%!StatusUpdateCallback(mode(),mode())"

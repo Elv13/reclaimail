@@ -56,7 +56,11 @@ function window_class:get_selected_text()
     if #lines == 0 then return end
 
     if #lines == 1 then
-        return  lines[1]:sub(start[2] + 1, finish[2])
+        if start[2] < finish[2] then
+            return  lines[1]:sub(start[2] + 1, finish[2])
+        else
+            return  lines[1]:sub(finish[2] + 1, start[2])
+        end
     else
         local ret = {}
 

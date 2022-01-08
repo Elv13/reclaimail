@@ -61,6 +61,11 @@ hi TabLine      ctermfg=Black  ctermbg=Gray     cterm=NONE
 hi TabLineFill  ctermfg=Black  ctermbg=Gray     cterm=NONE
 hi TabLineSel   ctermfg=White  ctermbg=DarkBlue  cterm=NONE
 
+hi MsgArea ctermbg=236 ctermfg=230
+hi MoreMsg term=bold ctermfg=230 cterm=bold
+hi ErrorMsg ctermfg=196 ctermbg=236 cterm=bold
+hi WarningMsg ctermfg=214 ctermbg=236 cterm=bold
+
 " Wrap the cursor at the end of the line
 set whichwrap+=<,>,h,l,[,]
 
@@ -83,7 +88,8 @@ highlight CursorLineNR cterm=bold ctermbg=234 ctermfg=75
 highlight clear CursorLine
 highlight CursorLine cterm=bold ctermbg=232 ctermfg=None
 
-highlight Pmenu ctermbg=NONE guibg=NONE ctermfg=white
+highlight Pmenu ctermbg=234 guibg=NONE ctermfg=white
+highlight PmenuSel ctermbg=Red  ctermfg=White
 
 function! SearchCount()
   "let keyString=@/

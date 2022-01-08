@@ -17,6 +17,7 @@ local function add_real_key(name, key, value)
             value = "<cmd>:lua "..var.."()<cr>"
         else
             value = ":silent lua "..var.."()<cr>"
+            name = name .. " <silent>"
         end
     end
     vim.api.nvim_command(name.." "..key.." "..value)

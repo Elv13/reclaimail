@@ -304,7 +304,15 @@ local function delete_selection_common(keep)
 
         local win = sugar.session.current_window
 
-        if win.cursor.column > win.current_line_lenght + 1 then
+        local col1 = win.selection_begin.column
+        local col2 = win.selection_end.column
+
+        -- The selection can be before or after the cursor.
+        if col2 < col1 then
+            col1 = col2
+        end
+
+        if sugar.session.options.selection ~= "exclusive" and col2 > win.current_line_lenght + 1 then
             sugar.normal('h'..deleter)
         else
             sugar.normal(deleter)
@@ -312,6 +320,14 @@ local function delete_selection_common(keep)
 
         -- Return to input mode.
         vim.api.nvim_input("<esc>i")
+
+        -- When using CTRL+o, the cursor gets converted from block to | and
+        -- move "before" the current character rather than being *on* the
+        -- current character. It's hard to detect this ahead of time, so
+        -- this `if` post-correct the bug.
+        if sugar.session.mode == "niI" and win.cursor.column == col1 - 1 then
+            vim.api.nvim_input("<Right>")
+        end
     end
 end
 

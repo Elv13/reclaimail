@@ -65,7 +65,8 @@ function module.cursor_to_end()
         vim.api.nvim_input("!silent <esc>")
     end
 
-    local len = vim.str_utfindex(sugar.session.current_window.current_line)
+    -- Its unclear why it works and not vim.str_utfindex(sugar.session.current_window.current_line)
+    local len = #sugar.session.current_window.current_line
 
     -- When in normal mode, it isn't possible to place the cursor at the
     -- end. So we have to wait until the mode switch is completed.
@@ -96,17 +97,28 @@ function module.search()
     vim.api.nvim_input("<esc>n")
 
     if (not ret) and err:find('Pattern not found') then
-        sugar.display.warning('ERROR: Pattern not found!')
+        sugar.display.warning('[ Pattern not found ]', 2000)
     end
 end
 
-function module.search_selected()
+function module.search_selected(backward)
     if sugar.session.mode ~= "v" then return end
 
     local txt = sugar.session.current_window.selected_text:gsub("/", "\\/")
+
+    if #txt == 0 then
+        sugar.display.warning('[ The selection is empty! ]', 2000)
+        return
+    end
+
     local ret, err = pcall(vim.api.nvim_command, "/"..txt)
 
-    vim.api.nvim_input("<esc>n")
+    -- Return to normal mode if this was a <c-o> command.
+    if sugar.session.mode == "niI" or sugar.session.mode == "v" then
+        vim.api.nvim_input("<esc>")
+    end
+
+    vim.api.nvim_input("<esc>" .. (backward and "N" or "n"))
 end
 
 --- Search and replace without idiotic magic.
@@ -131,11 +143,9 @@ function module.replace_selected()
     local word = sugar.session.current_window.selected_text:gsub("/", "\\/")
 
     if #word == 0 then
-        sugar.display.warning('ERROR: The selection is empty!')
+        sugar.display.warning('[ The selection is empty! ]', 2000)
         return
     end
-
-    print("'"..word.."'")
 
     local rep = sugar.input.prompt("Replace " ..word.." with: "):gsub("/", "\\/")
 
@@ -151,7 +161,7 @@ function module.move_to_line()
     elseif line:find("^[0-9]+$") then
         vim.api.nvim_input("<cmd>:"..line.."<cr>")
     else
-        sugar.display.warning('ERROR: Be resonable!')
+        sugar.display.warning('[ Be reasonable! ]', 2000)
     end
 end
 
@@ -217,7 +227,7 @@ function module.cut_and_yank_line()
         -- when the line if empty and it is the end of the file. If the line
         -- is *not* empty, then replace it with an empty one.
     if sugar.session.current_window.current_line == "" and sel_start == sel_end then
-            sugar.display.warning('[ Nothing to cut ]')
+            sugar.display.warning('[ Nothing to cut ]', 2000)
             return
         end
         add_line = true

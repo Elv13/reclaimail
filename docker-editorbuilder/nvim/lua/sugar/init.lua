@@ -24,19 +24,34 @@ function module.display.clear_prompt()
     end)
 end
 
+local function pad_message(message, win)
+    local w = (win or module.session.current_window).width
+
+    if w < #message then return message end
+
+    local count, ret = math.floor((w-#message)/2), {}
+
+    for i=1, count do
+        table.insert(ret, " ")
+    end
+
+    return table.concat(ret) .. message
+end
+
 --- Display a prompt warning for some time.
 function module.display.warning(message, timeout)
---     vim.api.nvim_input("<cmd>:echohl WarningMsg<cr>")
---     vim.api.nvim_input("<cmd>:echo '".. message .."'<cr>")
---     vim.api.nvim_input("<cmd>:echohl None<cr>")
-    vim.api.nvim_err_writeln(message)
+    module.schedule.delayed(function()
+        vim.api.nvim_command('echomsg ""')
+        vim.api.nvim_err_writeln(pad_message(message))
 
-    if timeout then
-        local timer = vim.loop.new_timer()
-            timer:start(5000, 0, vim.schedule_wrap(function()
-                vim.api.nvim_command('echomsg ""')
-        end))
-    end
+        if timeout then
+            local timer = vim.loop.new_timer()
+                timer:start(timeout, 0, vim.schedule_wrap(function()
+                    vim.api.nvim_command('echomsg ""')
+                end)
+            )
+        end
+    end)
 end
 
 -- Get a string from the command prompt.

@@ -14,8 +14,17 @@ run each container.
 In both case it requires PXE to work and generating some payloads
 on-demand.
 
+Automatic DNS and DNS-based service discovery also needs
+to work.  Using Avahi/Bonjour, DHT or UPnP based discovery could
+in theory offer a superior experience then DNS records, but the
+later is better integrated and the former can be added later.
+
 Beside, this tries to be a proper router OS with a goal overlapping
-the OpenWRT LUCI project.
+the (legacy) OpenWRT LUCI project. They are moving from Lua to pure
+bash for the sake of making the image smaller. I think this is the
+wrong solution: they should drop the shell and keep Lua. Yes, Lua
+is larger than busybox ash, but having a large number of unreadable
+bash scripts is a maintainability burden. It's also slower.
 
 ## Features
 
@@ -28,6 +37,11 @@ the OpenWRT LUCI project.
  
 ## Planned
 
- * Generate XML files for cisco phones
- * Generate payloads for some dev boards
+ * Generate XML files for cisco and polycom phones
+ * Generate PXE payloads for some dev boards
  * Allow x86 PCs to boot from a list of ISOs
+ * Offer PXE menus to onboard hardware into a k8s cluster
+ * Pry udhcpd, ifupdown and uhttpd off busybox and make
+   Lua modules using dnsmasq event loop.
+ * Remove Debian and use FROM:scratch without a shell or
+   any other packages than musl, dnsmasq + Lua modules.

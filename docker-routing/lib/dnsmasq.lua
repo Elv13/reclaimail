@@ -1,86 +1,178 @@
 --!/usr/bin/lua
 local unpack = unpack or table.unpack -- Lua 5.1 compat
-local ip, interfaces = unpack(require("proc_ip"))
-
-local function create_object(args)
-    args = args or {}
-    local conns = {}
-
-    local priv = {}
-
-    local ret = setmetatable({
-        _private = priv,
-        emit_signal = function(one, two, ...)
-            local params = args.class and {...} or {two, unpack{...}}
-            for _, conn in ipairs(conns[args.class and two or one] or {}) do
-                conn(unpack(params))
-            end
-
-            if args.class then
-                args.class.emit_signal(one, unpack(params))
-            end
-        end,
-        connect_signal = function(one, two, three)
-            conns[args.class and two or one] = conns[args.class and two or one] or {}
-            table.insert(
-                conns[args.class and two or one], args.class and three or two
-            )
-        end,
-    }, {
-        __index = priv,
-        __newindex = function(self, key, value)
-            if value ~= priv[key] then
-                priv[key] = value
-                self:emit_signal("property::"..key, priv[key])
-            else
-                priv[key] = value
-            end
-        end
-    })
-
-    if args.class then
-        args.class.emit_signal("added", ret)
-    end
-
-    return ret
-end
+local ip = unpack(require("reclaim.routing.proc_ip"))
+local devices = require("reclaim.routing.devices._base")
+local utils = require("reclaim.routing.utils")
+local lease_obj = require("reclaim.routing.lease")
+local create_object = require("reclaim.routing.object")
 
 local leases, leases_by_mac = create_object(), {}
 local hosts , saved_hosts   = create_object(), {}
 local ethers, saved_ethers  = create_object(), {}
-
-local map = {
-    add = "created", old = "expireed", del = "expired"
+local device_objs = {}
+local interfaces = {
+    by_name = {},
+    by_mac  = {},
+    by_area = {}
 }
 
--- Called when a lease is created, expired or expireed
-function lease(event, args)
-    local l = leases_by_mac[args.mac_address] or create_object {
-        class = leases,
-    }
+local map = {
+    add = "created", old = "renew", del = "expired"
+}
 
-    if not l.created then
-        l.created = os.date("%s")
-    end
+local module = {
+    _tftp_root = nil
+}
 
-    l.expireed = os.date("%s")
-    l.active  = event ~= "del"
+local function get_lease(args)
+    leases_by_mac[args.mac_address] = leases_by_mac[args.mac_address]
+        or lease_obj._create_existing(args)
 
-    -- Do it one-by-one so the signals are sent.
-    for k,v in pairs(args) do
-        l[k] = v
-    end
-
-    leases.emit_signal("lease::"..map[event], args)
+    return leases_by_mac[args.mac_address]
 end
 
-local tfiles, tfiles_by_path = create_object(), {}
+-- Called when a lease is created, expired or expireed
+local function real_lease(event, args)
+    if args.mac_address then
+        local l = get_lease(args)
+
+        if not l.created then
+            l.created = os.time()
+        end
+
+        --l.expired = os.time()
+        l.active  = event ~= "del"
+
+        if event == "del" then
+            -- leases_by_mac[args.mac_address] = nil
+        end
+
+        l:_update(map[event], args)
+
+        leases.emit_signal("lease::"..map[event], args)
+    end
+end
+
+function lease(...)
+    real_lease(...)
+    assert(next(leases_by_mac))
+    --xpcall(real_lease, function(err) debug.traceback("Lease failure: "..err) end, ...)
+end
+
+local tfiles = create_object { class = true }
+
+-- Called **BEFORE** Dnsmask check for the file on the disk.
+local function real_tftp_lookup(path, args)
+    -- It can happen if dnsmasq was just restarted or if there is
+    -- spoofed requests.
+    if not args.lease then return end
+
+    local l, obj, l_files = get_lease(args.lease), nil, nil
+
+    if l then
+        assert(l, "Cannot find lease for " .. args.lease.mac_address)
+
+        l_files = l._private.tfiles_by_path
+
+        obj = l_files[path]
+    end
+
+    if not obj then
+        obj = create_object {
+            class = tfiles
+        }
+
+        -- Remove the prefix. Otherwise everything will need to know
+        -- the prefix.
+        obj.path = path
+
+        if l then
+            l_files[path] = obj
+        end
+    end
+
+    local content = {}
+
+    tfiles.emit_signal("file::lookup", l, obj, nil, content)
+
+    -- Find all applicable devices in accordance to the PXE spec.
+    local all_devs = {}
+    for _, addr in ipairs(utils.hwaddr_to_sequ(args.lease.mac_address)) do
+        for _, dev in ipairs(devices._device_by_mac[addr] or {}) do
+            all_devs[dev] = true
+        end
+    end
+
+    if l and l.device then
+        all_devs[l.device] = true
+    end
+
+    -- Find all device objects and send the signals.
+    for device in pairs(all_devs) do
+        device:emit_signal("file::lookup", obj, nil, content)
+    end
+
+    if l then
+        l:emit_signal("file::lookup",  obj, nil, content)
+    end
+
+    for k, v in pairs(content) do --FIXME
+        return v, k
+    end
+
+end
+
+function tftp_lookup(...)
+    local ret = {
+        xpcall(real_tftp_lookup, function(err) print(debug.traceback("TFTP lookup failure"), err) end, ...)
+    }
+
+    if not ret[1] then
+        return
+    else
+        return ret[2], ret[3]
+    end
+    --return select(2, xpcall(real_tftp_lookup, function() debug.traceback("TFTP lookup failure") end, ...))
+
+--     local moo = [[
+-- UI menu.c32
+-- PROMPT 0
+--
+-- MENU TITLE Boot Menu
+-- TIMEOUT 50
+-- DEFAULT arch
+--
+-- LABEL arch2
+--         MENU LABEL Arch Linux
+--         LINUX ../vmlinuz-linux
+--         APPEND root=/dev/sda2 rw
+--         INITRD ../initramfs-linux.img
+--
+-- LABEL archfallback2
+--         MENU LABEL Arch Linux Fallback
+--         LINUX ../vmlinuz-linux
+--         APPEND root=/dev/sda2 rw
+--         INITRD ../initramfs-linux-fallback.img
+--
+-- ]]
+
+    -- local path, args = table.unpack({...})
+    -- print("PATH", path)
+    -- if path == "pxelinux.cfg/default" then
+    --     return moo, true
+    -- end
+
+end
+
 
 -- Called **AFTER** a file transfer, which is a bit useless compared to before...
-function tftp(args)
+local function real_tftp(args)
+    if args == "failure" then return end --TODO
+    if args == "tftp" then return end --TODO
+
     local f = args.file_name or create_object {class = tfiles}
 
-    t:emit_signal("transferred", args.destination_address)
+    tfiles.emit_signal("file::transferred", args.destination_address)
 
     args.destination_address = nil
 
@@ -90,11 +182,21 @@ function tftp(args)
     end
 end
 
+function tftp(...)
+    xpcall(real_tftp, function(err) print(debug.traceback("TFTP failure"), err) end, ...)
+end
+
+
 local config = {_buffer = {}}
 
 local conf_handler = {
     --TODO
 }
+
+function conf_handler:tftp_root(value)
+    tftp_root = value
+    return "tftp-root="..value
+end
 
 setmetatable(config, {
     __newindex = function(_, key, value)
@@ -112,23 +214,27 @@ setmetatable(config, {
     end
 })
 
-local session = create_object()
+local session = create_object {class = true}
+
+-- Make it easier to track interfaces from other modules.
+session.connect_signal("interface::added", function(i)
+    local area, name, mac = i._args.area, i._args.name, i._args.mac
+    interfaces.by_area[area] = interfaces.by_area[area] or {}
+    table.insert(interfaces.by_area[area], i)
+
+    if name then
+        interfaces.by_name[name] = i
+    end
+
+    interfaces.by_mac[mac] = i
+end)
 
 function configure()
-   print("IN LUA CONFIGURE")
-
    -- When a config value must have a comma separated list, it's necessary to
    -- tell when to push it.
    session.emit_signal("finish::config")
 
    return config._buffer
-end
-
-function tftp_lookup(addr, args)
-   print("\n\nTFTP LUA", addr)
-   print(args.client_address, args.mac_address)
-
-   tfiles.emit_signal("file::lookup", addr, args)
 end
 
 function init()
@@ -265,13 +371,25 @@ local function add_host(args)
     --TODO all the other options and magic values
 end
 
-return {
-    leases        = leases,
-    hosts         = load_hosts(),
-    tftp_files    = tfiles,
-    arp           = {},
-    session       = session,
-    config        = config,
-    ethers        = load_eithers(),
-    add_host      = add_host,
-}
+local function add_dhcp_option(option, value)
+    table.insert(config._buffer, "dhcp-option="..option..","..value)
+end
+
+-- It only prevents the garbage collection...
+local function add_device(dev)
+    table.insert(device_objs, dev)
+end
+
+module.leases          = leases
+module.interfaces      = interfaces
+module.hosts           = load_hosts()
+module.tftp_files      = tfiles
+module.arp             = {}
+module.session         = session
+module.config          = config
+module.ethers          = load_eithers()
+module.add_host        = add_host
+module.add_dhcp_option = add_dhcp_option
+module.add_device      = add_device
+
+return module

@@ -4,7 +4,7 @@
 -- is a better idea. NFS is even better, but I don't like adding such thing
 -- on a gateway, it's risky.
 
-local router = require("dnsmasq")
+local router = require("reclaim.routing.dnsmasq")
 
 --README:
 -- Keep in mind this software is designed to run within a specific Docker
@@ -98,8 +98,10 @@ local function generate_entry(name, path)
     -- and other workaround for chainloading other syslinux or grub2 bootloaders
     if f then
         f:close()
-        print("LOADING script for", name)
-        return loadfile("/ISO/"..name..".lua")(name, "192.168.100.1", lease).."\n\n" --TODO lease
+        print("Loading script for", name)
+        local ret = loadfile("/ISO/"..name..".lua")(name, "192.168.100.1", lease).."\n\n" --TODO lease
+        print("Loaded script for", name)
+        return ret
     end
 
     local kernel, init = find_kernel(path, name), find_initrd(path, name)

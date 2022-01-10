@@ -1,0 +1,48 @@
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+
+-A POSTROUTING -o WAN_TEMPLATE -j MASQUERADE
+
+COMMIT
+
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+
+# Service rules
+
+# basic global accept rules - ICMP, loopback, traceroute, established all accepted
+-A INPUT -s 127.0.0.0/8 -d 127.0.0.0/8 -i lo -j ACCEPT
+-A INPUT -p icmp -j ACCEPT
+-A INPUT -m state --state ESTABLISHED -j ACCEPT
+
+# enable traceroute rejections to get sent out
+-A INPUT -p udp -m udp --dport 33434:33523 -j REJECT --reject-with icmp-port-unreachable
+
+# DNS - accept from LAN
+-A INPUT -i LAN_TEMPLATE -p tcp --dport 53 -j ACCEPT
+-A INPUT -i LAN_TEMPLATE -p udp --dport 53 -j ACCEPT
+
+# SSH - accept from LAN
+-A INPUT -i LAN_TEMPLATE -p tcp --dport 22 -j ACCEPT
+
+# DHCP client requests - accept from LAN
+-A INPUT -i LAN_TEMPLATE -p udp --dport 67:68 -j ACCEPT
+
+# drop all other inbound traffic
+-A INPUT -j ACCEPT
+
+# Forwarding rules
+
+# forward packets along established/related connections
+-A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+# forward from LAN (LAN_TEMPLATE) to WAN (WAN_TEMPLATE)
+-A FORWARD -i LAN_TEMPLATE -o WAN_TEMPLATE -j ACCEPT
+
+# drop all other forwarded traffic
+-A FORWARD -j ACCEPT

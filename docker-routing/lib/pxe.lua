@@ -1,5 +1,5 @@
 
-local dnsmasq = require("dnsmasq")
+local dnsmasq = require("reclaim.routing.dnsmasq")
 local module = {}
 
 local methods = {}
@@ -19,6 +19,7 @@ end
 
 function methods:set_root(v)
     dnsmasq.config.tftp_root = v
+    dnsmasq._tftp_root = v
 end
 
 function methods:set_enabled(v)
@@ -36,7 +37,7 @@ end
 -- This is a singleton, this metamethod call is just syntax sugar.
 local function setup(_, args)
     for k, v in pairs(args) do
-        if methods[k] then
+        if methods["set_"..k] then
             methods["set_"..k](module, v)
         end
     end

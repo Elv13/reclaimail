@@ -293,9 +293,33 @@ function module.select_to_end()
     sugar.session.current_window.selection_end.column = 22
 end
 
--- Paste correctly depending on the mode.
+-- Paste correctly depending on the mode and selection size.
 function module.paste()
-    vim.api.nvim_command("normal! Pl")
+    local cur = sugar.session.current_window.cursor
+    local old_row, old_col = cur.row, cur.column
+
+    -- Check the number of line.
+    local sel   = sugar.global_functions.getreg('"')
+    local lines = {}
+
+    for line in sel:gmatch("([^\n]*)[\n]?") do
+        table.insert(lines, line)
+    end
+
+    table.remove(lines, #lines) --EOF
+
+    vim.api.nvim_paste(sel, false, -1)
+
+    if #lines > 1 then
+        -- Move the cursor to end of the new content.
+        sugar.session.current_window.cursor.row = old_row + #lines-1
+    end
+
+    if #lines > 1 then
+        sugar.session.current_window.cursor.column = #lines[#lines-2]
+    elseif old_col > 0 then
+        sugar.session.current_window.cursor.column = old_col + #lines[1]
+    end
 end
 
 local function delete_selection_common(keep)

@@ -7,7 +7,7 @@
 # config "just working".
 #
 # This Dockerfile goes out of its way to setup a proper
-# cross compile toolchain for the sake of saving a kilobits...
+# cross compile toolchain for the sake of saving a kilobit...
 # This also means ingnoring all the goodies of neovim build
 # system because "I know better". Still, given how it's used
 # and how the Reclaim project is hardened, it makes sense
@@ -15,19 +15,25 @@
 FROM debian:buster-slim
 MAINTAINER Emmanuel Lepage Vallee <elv1313+bugs@gmail.com>
 
-RUN apt update && apt install -y build-essential git cmake  \
+ENV DEBIAN_FRONTEND noninteractive
+
+# Make sure to upgrade so ca-certificate is up-to-date
+RUN apt update && apt upgrade -y && apt install -y build-essential git cmake  \
     pkg-config libtool-bin wget curl gperf gettext texinfo
 
-RUN git clone https://github.com/neovim/neovim.git;         \
-    git clone https://github.com/libuv/libuv.git;           \
-    git clone https://github.com/msgpack/msgpack-c.git;     \
-    git clone https://github.com/luvit/luv.git;             \
-    git clone https://github.com/LuaJIT/LuaJIT.git;         \
-    git clone https://github.com/neovim/unibilium.git;      \
-    git clone https://github.com/neovim/libtermkey.git;     \
-    git clone https://github.com/neovim/libvterm.git;       \
-    git clone https://github.com/luvit/lpeg.git;            \
-    git clone https://github.com/libmpack/libmpack-lua.git; \
+RUN wget "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+
+RUN git clone https://github.com/neovim/neovim.git;                 \
+    git clone https://github.com/libuv/libuv.git;                   \
+    git clone https://github.com/msgpack/msgpack-c.git -b c_master; \
+    git clone https://github.com/luvit/luv.git;                     \
+    git clone https://github.com/LuaJIT/LuaJIT.git;                 \
+    git clone https://github.com/neovim/unibilium.git;              \
+    git clone https://github.com/neovim/libtermkey.git;             \
+    git clone https://github.com/neovim/libvterm.git;               \
+    git clone https://github.com/luvit/lpeg.git;                    \
+    git clone https://github.com/libmpack/libmpack-lua.git;         \
+    git clone https://github.com/tree-sitter/tree-sitter.git;       \
     git clone git://git.musl-libc.org/musl
 
 # Compile binutils, just because we have a custom GCC...
@@ -92,7 +98,7 @@ RUN cd /gcc*/build-src;../configure \
     --disable-libsanitizer --disable-libgomp --disable-libitm            \
     --enable-lto --enable-gold=yes --enable-ld=yes                       \
     --target=x86_64-linux-musl --host=x86_64-linux-gnu                   \
-    --prefix=/opt/lto-toolchain && make -j16 && make install;rm -rf ./* 
+    --prefix=/opt/lto-toolchain && make -j16 && make install;rm -rf ./*
 
 #RUN cd /gcc*/build-src;rm -rf./*;../configure \
 #    --disable-tls --disable-multilib --enable-languages=c,c++                 \
@@ -151,10 +157,17 @@ RUN wget https://ftp.gnu.org/pub/gnu/ncurses/ncurses-6.2.tar.gz; tar -xpvf ncur*
         --prefix=/opt/lto-toolchain/x86_64-linux-musl/ &&\
     make -j12 CXX=$CXX CC=$CC && make install;
 
-RUN cd LuaJIT;\
-    sed -i "s|export PREFIX= /usr/local|export PREFIX= $PREFIX|g" Makefile;\
-    sed -i "s|DEFAULT_CC = gcc|DEFAULT_CC = $CC -static-libgcc -flto|g" src/Makefile;\
-    make -j16 && make install
+RUN cd LuaJIT; \
+    sed -i "s|export PREFIX= /usr/local|export PREFIX= /opt/lto-toolchain/x86_64-linux-musl/|g" Makefile; \
+    make \
+        PREFIX='$PREFIX' \
+        CC='/opt/lto-toolchain/bin/x86_64-linux-musl-gcc -static-libgcc' \
+        HOST_CFLAGS='-flto -Os -static-libgcc' \
+        HOST_LDFLAGS='-flto -Os -static-libgcc' \
+        TARGET_CFLAGS='-flto -Os -static-libgcc' \
+        TARGET_LDFLAGS='-flto -Os -static-libgcc' \
+        PREFIX='$PREFIX' -j16 && \
+    make install PREFIX=/opt/lto-toolchain/x86_64-linux-musl/
 
 RUN cd libuv; mkdir -p build; cd build; cmake .. -DBUILD_STATIC_LIBS=ON -DCMAKE_AR=$AR -DCMAKE_LINKER=$LD -DCMAKE_NM=$NM \
     -DCMAKE_INSTALL_PREFIX=$PREFIX -DLIBUV_BUILD_TESTS=OFF -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold && \
@@ -175,6 +188,7 @@ RUN cd luv; git pull --recurse-submodules;git submodule update --init --recursiv
     -DWITH_SHARED_LIBUV=On -DLIBUV_LIBRARY=/libuv/build/libuv_a.a \
     -DLIBUV_INCLUDE_DIR=/libuv/include/ && make install
 
+RUN ls msgpack-c
 RUN cd msgpack-c; mkdir -p build; cd build; cmake .. \
     -DCMAKE_AR=$AR -DCMAKE_LINKER=$LD -DCMAKE_NM=$NM \
     -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold\
@@ -209,28 +223,28 @@ RUN cd lpeg;\
 #    /opt/lto-toolchain/bin/x86_64-linux-musl-gcc-ar -x /libtermkey/.libs/libtermkey.a;\
 #    /opt/lto-toolchain/bin/x86_64-linux-musl-gcc-ar r libncurses_and_termkey.a  *.o
 
-# Enable static linking ans stripping
-ENV LDFLAGS='-march=x86-64 -Os -flto=8 -fuse-linker-plugin -Wl,-O1 -Wl,--as-needed -Wl,--gc-sections -Wl,--strip-all -Wl,-flto -static'
+# Install tree-sitter
+RUN cd tree-sitter && make install && \
+    rm /opt/lto-toolchain/x86_64-linux-musl/lib/libtree-sitter.so*
 
-# Compile a static NeoVIM
-RUN cd neovim; mkdir -p build; cd build; \
-    ln -sf /opt/lto-toolchain/x86_64-linux-musl/bin/luajit-2.1.0-beta3 \
-    /opt/lto-toolchain/x86_64-linux-musl/bin/luajit; \
+# Enable static linking and stripping
+ENV LDFLAGS='-march=x86-64 -Os -flto=8 -fuse-linker-plugin -Wl,-O1 -Wl,--as-needed -Wl,--gc-sections -Wl,--strip-all -Wl,-flto -static'
+ENV LUA_CPATH='?;?.lua;/opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/?.so;'
+ENV LUA_PATH='?;?.lua;/opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/?/?.lua;'
+
+# Last minute fixups
+RUN ln -sf /opt/lto-toolchain/x86_64-linux-musl/bin/luajit-2.1.0-beta3 \
+        /opt/lto-toolchain/x86_64-linux-musl/bin/luajit; \
     mkdir -p /opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/;\
-    cp /libmpack-lua/mpack.so /opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/;\
     cp /lpeg/lpeg.so /opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/;\
-    cp /libmpack-lua/mpack.so /opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/;\
-    cmake .. \
-    -DCMAKE_AR=$AR -DCMAKE_LINKER=$LD -DCMAKE_NM=$NM \
-    -DLIBUV_LIBRARY=/libuv/build/libuv_a.a -DLIBUV_INCLUDE_DIR=/libuv/include/ \
-    -DMSGPACK_LIBRARY=/msgpack-c/build/libmsgpackc.a -DMSGPACK_INCLUDE_DIR=/msgpack-c/include/ \
-    -DLIBLUV_LIBRARY=/luv/build/libluv_a.a -DLIBLUV_INCLUDE_DIR=/luv/src/ \
-    -DLUAJIT_LIBRARY=/LuaJIT/src/libluajit.a -DLUAJIT_INCLUDE_DIR=/LuaJIT/src \
-    -DUNIBILIUM_LIBRARY=/unibilium/build/libunibilium.a -DUNIBILIUM_INCLUDE_DIR=/unibilium/ \
-    -DLIBTERMKEY_LIBRARY=/libtermkey/.libs/libtermkey.a -DLIBTERMKEY_INCLUDE_DIR=/libtermkey/ \
-    -DLIBVTERM_LIBRARY=/libvterm/.libs/libvterm.a -DLIBVTERM_INCLUDE_DIR=/libvterm/ \
-    -DLUA_PRG=/LuaJIT/src/luajit -DCMAKE_INSTALL_PREFIX=/opt/neovim-static -DCMAKE_SYSROOT=$PREFIX && make -j16 install
+    cp /libmpack-lua/mpack.so /opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/;
+
+ADD build.sh /
+ADD AppRun nvim.desktop vim.xpm /export/
 
 # Now we have our static binary. Rejoice, children of Unix.
 # Now lets add an AppImage so we can store the config within
 # the binary *and* allow it to be stored in ~/.config/portable-nvim
+
+# Compile a static NeoVIM
+ENTRYPOINT /build.sh

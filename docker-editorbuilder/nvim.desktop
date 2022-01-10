@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=nvim
+Type=Application
+Comment=Best editor ever
+Terminal=true
+Exec=/nvim
+Icon=vim
+Categories=ConsoleOnly;System;
+GenericName=NeoVIM
+Keywords=system;process;task

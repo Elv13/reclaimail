@@ -1,0 +1,9 @@
+#!/bin/sh
+
+export VIMRUNTIME=$APPDIR/opt/neovim-static/share/nvim/runtime/
+
+if [ ! -d ~/.config/nvim ]; then
+    cp $APPDIR/config ~/.config/nvim -a
+fi
+
+exec $APPDIR/nvim $@

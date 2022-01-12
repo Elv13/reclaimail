@@ -1,9 +1,18 @@
 #!/bin/sh
 
-export VIMRUNTIME=$APPDIR/opt/neovim-static/share/nvim/runtime/
+export VIMRUNTIME=$APPDIR/share/nvim/runtime/
+export XDG_CONFIG_DIRS=$XDG_CONFIG_DIRS:$APPDIR/etc/
 
-if [ ! -d ~/.config/nvim ]; then
-    cp $APPDIR/config ~/.config/nvim -a
-fi
+while true; do
+  case "$1" in
+    --fork_config ) FORK=true; shift ;;
+    -- ) shift; break ;;
+    * ) break ;;
+  esac
+done
 
-exec $APPDIR/nvim $@
+#if [ "$FORK" -ne "" ] && [ ! -d ~/.config/nvim ]; then
+#     cp $APPDIR/etc/nvim ~/.config/nvim -a
+#fi
+
+exec $APPDIR/bin/nvim $@

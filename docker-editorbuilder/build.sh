@@ -18,8 +18,25 @@ cmake .. \
 
 make -j16 install || exit $?
 
-chmod a+x appimagetool-x86_64.AppImage
-cp /neovim/build/bin/nvim /export/ -v
-cp /neovim/build/opt /export/ -rv
+# Cleanup unused assets
+rm -r /opt/neovim-static/share/locale/ \
+    /opt/neovim-static/share/man \
+    /opt/neovim-static/share/nvim/runtime/ftplugin \
+    /opt/neovim-static/share/nvim/runtime/lua \
+    /opt/neovim-static/share/nvim/runtime/tutor \
+    /opt/neovim-static/share/applications \
+    /opt/neovim-static/lib \
+    /opt/neovim-static/share/nvim/runtime/doc \
+    /opt/neovim-static/share/nvim/runtime/pack/dist/opt/*/doc \
+    /opt/neovim-static/share/icons/ \
+    /opt/neovim-static/config/.git
 
-ARCH=x86_64 ./appimagetool-x86_64.AppImage export/ nvim.appimage --comp gzip
+# If your config rely on a theme, then install it.
+for file in $(find /opt/neovim-static/share/nvim/runtime/colors/ | grep -v elflord); do
+    rm $file
+done
+
+cd /
+mkdir -p /export
+
+ARCH=x86_64 appimagetool /opt/neovim-static/ /export/nvim.appimage --comp gzip

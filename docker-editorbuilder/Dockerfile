@@ -23,17 +23,17 @@ RUN apt update && apt upgrade -y && apt install -y build-essential git cmake  \
 
 RUN wget "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
 
-RUN git clone https://github.com/neovim/neovim.git;                 \
-    git clone https://github.com/libuv/libuv.git;                   \
-    git clone https://github.com/msgpack/msgpack-c.git -b c_master; \
-    git clone https://github.com/luvit/luv.git;                     \
-    git clone https://github.com/LuaJIT/LuaJIT.git;                 \
-    git clone https://github.com/neovim/unibilium.git;              \
-    git clone https://github.com/neovim/libtermkey.git;             \
-    git clone https://github.com/neovim/libvterm.git;               \
-    git clone https://github.com/luvit/lpeg.git;                    \
-    git clone https://github.com/libmpack/libmpack-lua.git;         \
-    git clone https://github.com/tree-sitter/tree-sitter.git;       \
+RUN git clone https://github.com/neovim/neovim.git &&                 \
+    git clone https://github.com/libuv/libuv.git &&                   \
+    git clone https://github.com/msgpack/msgpack-c.git -b c_master && \
+    git clone https://github.com/luvit/luv.git &&                     \
+    git clone https://github.com/LuaJIT/LuaJIT.git -b v2.1 &&         \
+    git clone https://github.com/neovim/unibilium.git &&              \
+    git clone https://github.com/neovim/libtermkey.git &&             \
+    git clone https://github.com/neovim/libvterm.git &&               \
+    git clone https://github.com/luvit/lpeg.git &&                    \
+    git clone https://github.com/libmpack/libmpack-lua.git &&         \
+    git clone https://github.com/tree-sitter/tree-sitter.git &&       \
     git clone git://git.musl-libc.org/musl
 
 # Compile binutils, just because we have a custom GCC...
@@ -157,15 +157,18 @@ RUN wget https://ftp.gnu.org/pub/gnu/ncurses/ncurses-6.2.tar.gz; tar -xpvf ncur*
         --prefix=/opt/lto-toolchain/x86_64-linux-musl/ &&\
     make -j12 CXX=$CXX CC=$CC && make install;
 
+# LuaJIT Makefiles are hardcoded. They claim to support passing everything
+# as variables, but it doesn't actually work, hence the `sed` calls.
 RUN cd LuaJIT; \
     sed -i "s|export PREFIX= /usr/local|export PREFIX= /opt/lto-toolchain/x86_64-linux-musl/|g" Makefile; \
-    make \
+    sed -i "s|DEFAULT_CC = gcc|DEFAULT_CC = $CC -static-libgcc -Os -fno-function-sections -fno-data-sections|g" src/Makefile; \
+    CFLAGS="" LDFLAGS="" make \
         PREFIX='$PREFIX' \
-        CC='/opt/lto-toolchain/bin/x86_64-linux-musl-gcc -static-libgcc' \
-        HOST_CFLAGS='-flto -Os -static-libgcc' \
-        HOST_LDFLAGS='-flto -Os -static-libgcc' \
-        TARGET_CFLAGS='-flto -Os -static-libgcc' \
-        TARGET_LDFLAGS='-flto -Os -static-libgcc' \
+        CC='/opt/lto-toolchain/bin/x86_64-linux-musl-gcc -static-libgcc -fno-function-sections -fno-data-sections' \
+        HOST_CFLAGS='-Os -static-libgcc -fno-function-sections -fno-data-sections' \
+        HOST_LDFLAGS='-Os -static-libgcc -fno-function-sections -fno-data-sections' \
+        TARGET_CFLAGS='-Os -static-libgcc -fno-function-sections -fno-data-sections' \
+        TARGET_LDFLAGS='-Os -static-libgcc -fno-function-sections -fno-data-sections' \
         PREFIX='$PREFIX' -j16 && \
     make install PREFIX=/opt/lto-toolchain/x86_64-linux-musl/
 
@@ -188,7 +191,6 @@ RUN cd luv; git pull --recurse-submodules;git submodule update --init --recursiv
     -DWITH_SHARED_LIBUV=On -DLIBUV_LIBRARY=/libuv/build/libuv_a.a \
     -DLIBUV_INCLUDE_DIR=/libuv/include/ && make install
 
-RUN ls msgpack-c
 RUN cd msgpack-c; mkdir -p build; cd build; cmake .. \
     -DCMAKE_AR=$AR -DCMAKE_LINKER=$LD -DCMAKE_NM=$NM \
     -DCMAKE_INSTALL_PREFIX=$PREFIX -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold\
@@ -240,7 +242,15 @@ RUN ln -sf /opt/lto-toolchain/x86_64-linux-musl/bin/luajit-2.1.0-beta3 \
     cp /libmpack-lua/mpack.so /opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/;
 
 ADD build.sh /
-ADD AppRun nvim.desktop vim.xpm /export/
+ADD AppRun nvim.desktop vim.xpm /opt/neovim-static/
+
+RUN chmod +x appimagetool-x86_64.AppImage && \
+    ./appimagetool-x86_64.AppImage --appimage-extract && \
+    mv /squashfs-root/ /appimagetool
+
+ENV PATH=$PATH:/appimagetool/usr/bin/
+
+ADD nvim/ /opt/neovim-static/etc/nvim/
 
 # Now we have our static binary. Rejoice, children of Unix.
 # Now lets add an AppImage so we can store the config within

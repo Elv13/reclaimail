@@ -10,9 +10,6 @@ set shiftwidth=4
 
 set nomagic
 
-"set iskeyword = "a-z,A-Z,48-57,_,.,-,>,<"
-"set iskeyword = "@,48-57,_,192-255"
-
 silent! unmap <Tab>
 silent! unmap <S-Tab>
 silent! unmap <C-Tab>
@@ -24,7 +21,15 @@ silent! unmap <A-Right>
 autocmd BufWritePre * %s/\s\+$//e
 
 " All the keymap and whatever is available using Lua
-lua dofile(os.getenv("HOME").."/.config/nvim/lua/rc.lua")
+
+let local_config = $HOME . "/.config/nvim/lua/rc.lua"
+
+if filereadable(local_config)
+    lua dofile(os.getenv("HOME").."/.config/nvim/lua/rc.lua")
+else
+    " This should be part of the AppImage
+    lua dofile("/etc/nvim/lua/rc.lua")
+endif
 
 " Add a Lua callback when the statusline gets updated
 function! StatusUpdateCallback(m, w)

@@ -5,6 +5,7 @@ mkdir -p build
 cd build
 
 cmake .. \
+    -DCOMPILE_LUA=ON \
     -DCMAKE_AR=$AR -DCMAKE_LINKER=$LD -DCMAKE_NM=$NM \
     -DLIBUV_LIBRARY=/libuv/build/libuv_a.a -DLIBUV_INCLUDE_DIR=/libuv/include/ \
     -DMSGPACK_LIBRARY=/msgpack-c/build/libmsgpackc.a -DMSGPACK_INCLUDE_DIR=/opt/lto-toolchain/x86_64-linux-musl/include/ \
@@ -29,14 +30,33 @@ rm -r /opt/neovim-static/share/locale/ \
     /opt/neovim-static/share/nvim/runtime/doc \
     /opt/neovim-static/share/nvim/runtime/pack/dist/opt/*/doc \
     /opt/neovim-static/share/icons/ \
-    /opt/neovim-static/config/.git
+    /opt/neovim-static/etc/nvim/lua/.git
 
 # If your config rely on a theme, then install it.
 for file in $(find /opt/neovim-static/share/nvim/runtime/colors/ | grep -v elflord); do
     rm $file
 done
 
+# Delete some syntax highlight which few will miss
+# (and sorry for being opiniated, blame `du -h`)
+rm /opt/neovim-static/share/nvim/runtime/syntax/xs.vim
+rm /opt/neovim-static/share/nvim/runtime/syntax/hollywood.vim
+rm /opt/neovim-static/share/nvim/runtime/syntax/pfmain.vim
+rm /opt/neovim-static/share/nvim/runtime/syntax/baan.vim
+rm /opt/neovim-static/share/nvim/runtime/syntax/postscr.vim
+rm /opt/neovim-static/share/nvim/runtime/syntax/sas.vim
+rm /opt/neovim-static/share/nvim/runtime/syntax/nsis.vim
+rm /opt/neovim-static/share/nvim/runtime/syntax/foxpro.vim
+rm /opt/neovim-static/share/nvim/runtime/syntax/autoit.vim
+
 cd /
 mkdir -p /export
+
+# Compile the Lua config to bytecode
+for file in $(find /opt/neovim-static/etc/ -iname '*.lua'); do
+    mv $file ${file}.origin
+    luajit -b ${file}.origin $file
+    rm ${file}.origin
+done
 
 ARCH=x86_64 appimagetool /opt/neovim-static/ /export/nvim.appimage --comp gzip

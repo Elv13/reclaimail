@@ -170,7 +170,9 @@ RUN cd LuaJIT; \
         TARGET_CFLAGS='-Os -static-libgcc -fno-function-sections -fno-data-sections' \
         TARGET_LDFLAGS='-Os -static-libgcc -fno-function-sections -fno-data-sections' \
         PREFIX='$PREFIX' -j16 && \
-    make install PREFIX=/opt/lto-toolchain/x86_64-linux-musl/
+    make install PREFIX=/opt/lto-toolchain/x86_64-linux-musl/ && \
+    ln -s /opt/lto-toolchain/x86_64-linux-musl/share/luajit-2.1.0-beta3/jit/ \
+        /opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/
 
 RUN cd libuv; mkdir -p build; cd build; cmake .. -DBUILD_STATIC_LIBS=ON -DCMAKE_AR=$AR -DCMAKE_LINKER=$LD -DCMAKE_NM=$NM \
     -DCMAKE_INSTALL_PREFIX=$PREFIX -DLIBUV_BUILD_TESTS=OFF -DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold && \
@@ -232,7 +234,7 @@ RUN cd tree-sitter && make install && \
 # Enable static linking and stripping
 ENV LDFLAGS='-march=x86-64 -Os -flto=8 -fuse-linker-plugin -Wl,-O1 -Wl,--as-needed -Wl,--gc-sections -Wl,--strip-all -Wl,-flto -static'
 ENV LUA_CPATH='?;?.lua;/opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/?.so;'
-ENV LUA_PATH='?;?.lua;/opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/?/?.lua;'
+ENV LUA_PATH='?;?.lua;/opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/?/?.lua;/opt/lto-toolchain/x86_64-linux-musl/lib/lua/5.1/?.lua'
 
 # Last minute fixups
 RUN ln -sf /opt/lto-toolchain/x86_64-linux-musl/bin/luajit-2.1.0-beta3 \
@@ -248,7 +250,7 @@ RUN chmod +x appimagetool-x86_64.AppImage && \
     ./appimagetool-x86_64.AppImage --appimage-extract && \
     mv /squashfs-root/ /appimagetool
 
-ENV PATH=$PATH:/appimagetool/usr/bin/
+ENV PATH=$PATH:/appimagetool/usr/bin/:LuaJIT/src/
 
 ADD nvim/ /opt/neovim-static/etc/nvim/
 

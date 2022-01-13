@@ -68,4 +68,11 @@ for file in $(find /opt/neovim-static/etc/ -iname '*.lua'); do
     rm ${file}.origin
 done
 
+# Remove the comments from the .vim
+for file in $(find /opt/neovim-static/ -iname '*.vim'); do
+    mv $file ${file}.origin
+    grep -vE '^["]' ${file}.origin > $file
+    rm ${file}.origin
+done
+
 ARCH=$ARCH appimagetool /opt/neovim-static/ /export/nvim.appimage --comp gzip

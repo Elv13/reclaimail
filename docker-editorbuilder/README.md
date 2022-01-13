@@ -23,6 +23,15 @@ This should add a `nvim.appimage` to the current directory.
 Note that if you change the config and rely on a theme, edit
 `build.sh` to *not* delete it.
 
+The docker build options are:
+
+    COMPILE_x86_64   : Build the AMD64 version
+    COMPILE_i686     : Build the 32bit version
+    COMPILE_aarch64  : Cross compile for ARM
+    GCC_VERSION      : The GCC version (default to 9.3)
+    PARALLEL         : Set to #CPU + 1
+
+
 # Editor usage
 
 ```

@@ -9,6 +9,8 @@ local kate      = require( "kate"      )
 local vscode    = require( "vscode"    )
 local selection = require( "selection" )
 
+require("theme")
+
 -- Little helper functions to execute commands from insert mode
 local function cmd2(command) return function() vim.api.nvim_command(command) end end
 local function norm(command) return function() vim.api.nvim_command("normal! "..command) end end
@@ -285,6 +287,9 @@ global_keymap["<PageUp>"] = nano.page_up
 -- Match bracket
 modes.normal.keymap["\\"] = "%"
 
+-- Disable F1 because it is close to escape and I keep hitting it
+global_keymap["<F1>"] = function() end
+
 -- Select block.
 for mode, prefix in pairs {normal = "v", visual = ""} do
     modes[mode].keymap['"'] = prefix.."i'"
@@ -310,19 +315,6 @@ modes.visual.keymap['<Space>'] = selection.select_current_construct
 -- Jump to previous/next location.
 modes.normal.keymap["-"] = "g;"
 modes.normal.keymap["="] = "g,"
-
--- Add a color
-local function add_highlight(args)
-    local param = " "
-
-    for k, v in pairs(args) do
-        if k ~= "name" then
-            param = param .. k.."="..v.." "
-        end
-    end
-
-    vim.api.nvim_command("hi "..args.name..param)
-end
 
 -- Powerline like mode names
 local mode_names = {
@@ -354,37 +346,43 @@ local line_number_color = {
         LineNr      = {ctermfg = 255, ctermbg = 124 }, PowerColor1 = {ctermfg = 255, ctermbg = 124},
         PowerColor2 = {ctermfg = 255, ctermbg = 202 }, PowerColor3 = {ctermfg = 255, ctermbg = 172},
         PowerColor4 = {ctermfg = 255, ctermbg = 28  }, PowerColor5 = {ctermfg = 255, ctermbg = 52 },
-        Middle      = {ctermfg = 12 , ctermbg = 234 }, TopStatus   = {ctermfg = 255, ctermbg = 196, cterm="bold" }
+        Middle      = {ctermfg = 12 , ctermbg = 234 }, TopStatus   = {ctermfg = 255, ctermbg = 196, bold= true },
+        MsgArea     = {ctermfg = 255, ctermbg = 234 }
     },
     ['Normal·OP'] = {
         LineNr      = {ctermfg = 67 , ctermbg = 233}, PowerColor1 = {ctermfg = 255, ctermbg = 52 },
         PowerColor2 = {ctermfg = 67 , ctermbg = 233}, PowerColor3 = {ctermfg = 255, ctermbg = 52 },
         PowerColor4 = {ctermfg = 255, ctermbg = 28 }, PowerColor5 = {ctermfg = 255, ctermbg = 52 },
-        Middle      = {ctermfg = 12 , ctermbg = 13 }, TopStatus   = {ctermfg = 255, ctermbg = 124, cterm="bold" }
+        Middle      = {ctermfg = 12 , ctermbg = 13 }, TopStatus   = {ctermfg = 255, ctermbg = 124, bold= true },
+        MsgArea     = {ctermfg = 255, ctermbg = 234 }
     },
     ['Visual'   ] = {
-        LineNr      = {ctermfg = 255, ctermbg = 54 }, PowerColor1 = {ctermfg = 255, ctermbg = 54, cterm="bold" },
+        LineNr      = {ctermfg = 255, ctermbg = 54 }, PowerColor1 = {ctermfg = 255, ctermbg = 54, bold= true },
         PowerColor2 = {ctermfg = 16 , ctermbg = 33 }, PowerColor3 = {ctermfg = 255, ctermbg = 52 },
         PowerColor4 = {ctermfg = 255, ctermbg = 28 }, PowerColor5 = {ctermfg = 255, ctermbg = 52 },
-        Middle      = {ctermfg = 12 , ctermbg = 18 }, TopStatus   = {ctermfg = 255, ctermbg = 93, cterm="bold" }
+        Middle      = {ctermfg = 12 , ctermbg = 18 }, TopStatus   = {ctermfg = 255, ctermbg = 93, bold= true },
+        MsgArea     = {ctermfg = 255, ctermbg = 54 }
     },
     ['V·Line'   ] = {
         LineNr      = {ctermfg = 67 , ctermbg = 233}, PowerColor1 = {ctermfg = 255, ctermbg = 52 },
         PowerColor2 = {ctermfg = 67 , ctermbg = 233}, PowerColor3 = {ctermfg = 255, ctermbg = 52 },
         PowerColor4 = {ctermfg = 255, ctermbg = 28 }, PowerColor5 = {ctermfg = 255, ctermbg = 52 },
-        Middle      = {ctermfg = 12 , ctermbg = 13 }, TopStatus   = {ctermfg = 255, ctermbg = 124, cterm="bold" }
+        Middle      = {ctermfg = 12 , ctermbg = 13 }, TopStatus   = {ctermfg = 255, ctermbg = 124, bold= true },
+        MsgArea     = {ctermfg = 255, ctermbg = 54 }
     },
     ['V·Block'  ] = {
         LineNr      = {ctermfg = 67 , ctermbg = 233}, PowerColor1 = {ctermfg = 255, ctermbg = 52 },
         PowerColor2 = {ctermfg = 67 , ctermbg = 233}, PowerColor3 = {ctermfg = 255, ctermbg = 52 },
         PowerColor4 = {ctermfg = 255, ctermbg = 28 }, PowerColor5 = {ctermfg = 255, ctermbg = 52 },
-        Middle      = {ctermfg = 12 , ctermbg = 13 }, TopStatus   = {ctermfg = 255, ctermbg = 124, cterm="bold" }
+        Middle      = {ctermfg = 12 , ctermbg = 13 }, TopStatus   = {ctermfg = 255, ctermbg = 124, bold= true },
+        MsgArea     = {ctermfg = 255, ctermbg = 54 }
     },
     ['Insert'   ] = {
-        LineNr      = {ctermfg = 16 , ctermbg = 33  }, PowerColor1 = {ctermfg = 255 , ctermbg = 33, cterm="bold" },
+        LineNr      = {ctermfg = 16 , ctermbg = 33  }, PowerColor1 = {ctermfg = 255 , ctermbg = 33, bold= true },
         PowerColor2 = {ctermfg = 255, ctermbg = 201 }, PowerColor3 = {ctermfg = 255, ctermbg = 28 },
         PowerColor4 = {ctermfg = 255, ctermbg = 201 }, PowerColor0 = {ctermfg = 67 , ctermbg = 233},
-        Middle      = {ctermfg = 12 , ctermbg = 7   }, TopStatus   = {ctermfg = 255, ctermbg = 25, cterm="bold" }
+        Middle      = {ctermfg = 12 , ctermbg = 7   }, TopStatus   = {ctermfg = 255, ctermbg = 25, bold= true },
+        MsgArea     = {ctermfg = 255, ctermbg = 17  }
     },
 }
 
@@ -410,27 +408,26 @@ local function update_numbar(mode)
 
     local theme = line_number_color[mode]
 
-    add_highlight {
-        name    = "LineNr",
+    sugar.highlight.LineNr = {
         ctermfg = theme.LineNr.ctermfg,
         ctermbg = theme.LineNr.ctermbg,
     }
 
-    add_highlight {
-        name    = "LineNrInvert",
+    sugar.highlight.LineNrInvert = {
         ctermbg = theme.LineNr.ctermfg,
         ctermfg = theme.LineNr.ctermbg,
     }
 
-    add_highlight {
-        name    = "TopStatus",
+    sugar.highlight.MsgArea.ctermfg = theme.MsgArea.ctermfg
+    sugar.highlight.MsgArea.ctermbg = theme.MsgArea.ctermbg
+
+    sugar.highlight.TopStatus = {
         ctermfg = theme.TopStatus.ctermfg,
         ctermbg = theme.TopStatus.ctermbg,
-        cterm   = theme.TopStatus.cterm,
+        bold    = theme.TopStatus.bold,
     }
 
-    add_highlight {
-        name    = "TopStatusInvert",
+    sugar.highlight.TopStatusInvert = {
         ctermfg = theme.TopStatus.ctermbg,
         ctermbg = theme.LineNr.ctermbg,
     }
@@ -439,19 +436,18 @@ local function update_numbar(mode)
     for i=0, 4, 2 do
         local idx = math.floor(i/2) + 1
 
-        add_highlight {
-            name    = "StatusLine"..(i+1),
-            cterm   = theme["PowerColor"..idx].cterm,
+        sugar.highlight["StatusLine"..(i+1)] = {
+            bold    = theme["PowerColor"..idx].bold,
             ctermfg = theme["PowerColor"..idx].ctermfg,
             ctermbg = theme["PowerColor"..idx].ctermbg,
         }
-        add_highlight {
-            name    = "StatusLineL"..(i+2),
+
+        sugar.highlight["StatusLineL"..(i+2)] = {
             ctermfg = theme["PowerColor"..(idx  )].ctermbg,
             ctermbg = theme["PowerColor"..(idx+1)].ctermbg,
         }
-        add_highlight {
-            name    = "StatusLineR"..(i+2),
+
+        sugar.highlight["StatusLineR"..(i+2)] = {
             ctermbg = theme["PowerColor"..(idx  )].ctermbg,
             ctermfg = theme["PowerColor"..(idx+1)].ctermbg,
         }
@@ -464,25 +460,6 @@ local function update_numbar(mode)
 
     --set_number_absolute()
 end
-
-add_highlight {
-    name    = "StatusLine",
-    ctermfg = 123,
-    ctermbg = 111,
-}
-
-add_highlight {
-    name    = "User1",
-    ctermfg = 241,
-    ctermbg = 28,
-}
-
---FIXME for some reason only works in init.vim?
--- add_highlight {
---     name    = "MsgArea",
---     ctermfg = 202,
---     ctermbg = 236
--- }
 
 local left_delim, right_delim = "", ""
 
@@ -552,19 +529,17 @@ function status_update_callback(mode_raw)
 
     push_to_stack(stacks.right, " Shift: "..sugar.session.options.shiftwidth)
     push_to_stack(stacks.right, " %l/%L (%p%%) : %c ")
-    push_to_stack(stacks.right, "  NeoVIM %{SearchCount()} ")
+    push_to_stack(stacks.right, "  NeoVIM")
 
     -- Before creating the content, set the final colors.
     local theme = line_number_color[mode]
 
-    add_highlight {
-        name    = "StatusMiddleL",
+    sugar.highlight.StatusMiddleL = {
         ctermfg = theme["PowerColor"..#stacks.left].ctermbg,
         ctermbg = theme.Middle.ctermbg,
     }
 
-    add_highlight {
-        name    = "StatusMiddleR",
+    sugar.highlight.StatusMiddleR = {
         ctermfg = theme["PowerColor1"].ctermbg,
         ctermbg = theme.Middle.ctermbg,
     }
@@ -579,7 +554,6 @@ function status_update_callback(mode_raw)
         ret = ret..section
     end
 
-    --assert(false,ret)
     print(ret)
     return ""
 end
@@ -606,7 +580,7 @@ function tab_update_callback(mode_raw, buf_num)
         names[buf] = name
     end
 
-    local kw = "TODO"..sugar.session.current_window.width.." "..total --sugar.session.options.iskeyword
+    local kw = "TODO"
     local suffix = " %= %#TopStatusInvert#%#TopStatus# %f  "..kw.."  NeoVIM "
 
     total = total + vim.str_utfindex(suffix, #suffix)

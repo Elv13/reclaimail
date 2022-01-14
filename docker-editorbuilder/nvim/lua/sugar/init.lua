@@ -2,16 +2,18 @@
 
 local nobject = require("sugar.nobject")
 
-local module  = require("sugar._base")
-local session = require("sugar.session")
-local window  = require("sugar.window")
-local buffer  = require("sugar.buffer")
+local module    = require("sugar._base")
+local session   = require("sugar.session")
+local window    = require("sugar.window")
+local buffer    = require("sugar.buffer")
+local highlight = require("sugar.highlight")
 
 local global_signals = {}
 
-module.session = session.get_session()
-module.window  = window
-module.buffer  = buffer
+module.session   = session.get_session()
+module.window    = window
+module.buffer    = buffer
+module.highlight = highlight
 
 --- Run a function in the next event loop iteration.
 -- @tparam function fct A function (takes no parameters).

@@ -1,5 +1,5 @@
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
-set runtimepath+=$APPDIR/opt/neovim-static/share/nvim/runtime/
+set runtimepath+=$APPDIR/share/nvim/runtime/
 let &packpath = &runtimepath
 
 " Need to be done first, before "syntax on"
@@ -44,8 +44,11 @@ endfunction
 syntax on
 filetype plugin indent on
 
+setlocal spell spelllang=en_us
 set mouse=a
+set mousemodel=popup_setpos
 set cursorline
+
 
 " Remove the delay when presing escape
 " https://www.johnhawthorn.com/2012/09/vi-escape-delays/
@@ -62,53 +65,10 @@ set expandtab
 " Make search case insensitive
 set ignorecase
 
-hi TabLine      ctermfg=Black  ctermbg=Gray     cterm=NONE
-hi TabLineFill  ctermfg=Black  ctermbg=Gray     cterm=NONE
-hi TabLineSel   ctermfg=White  ctermbg=DarkBlue  cterm=NONE
-
-hi MsgArea ctermbg=236 ctermfg=230
-hi MoreMsg term=bold ctermfg=230 cterm=bold
-hi ErrorMsg ctermfg=196 ctermbg=236 cterm=bold
-hi WarningMsg ctermfg=214 ctermbg=236 cterm=bold
 
 " Wrap the cursor at the end of the line
 set whichwrap+=<,>,h,l,[,]
 
 set backspace=indent,eol,start
-
-" Map alt+arrow to navigate panes
-"nnoremap <silent> <M-Right> <c-w>l
-"nnoremap <silent> <M-Left> <c-w>h
-"nnoremap <silent> <M-Up> <c-w>k
-"nnoremap <silent> <M-Down> <c-w>j
-
-"imap \e[a <S-Up>
-"imap \e[b <S-Down>
-"imap \e[c <S-Right>
-"imap \e[d <S-Left>
-
-" Color
-highlight CursorLineNR cterm=bold ctermbg=234 ctermfg=75
-
-highlight clear CursorLine
-highlight CursorLine cterm=bold ctermbg=232 ctermfg=None
-
-highlight Pmenu ctermbg=234 guibg=NONE ctermfg=white
-highlight PmenuSel ctermbg=Red  ctermfg=White
-
-function! SearchCount()
-  "let keyString=@/
-  "let pos=getpos('.')
-  "try
-  "   redir => nth
-  "    silent exe '0,.s/' . keyString . '//ne'
-  "  redir => cnt
-  "    silent exe '%s/' . keyString . '//ne'
-  "  redir END
-  "  return matchstr( nth, '\d\+' ) . '/' . matchstr( cnt, '\d\+' )
-  "finally
-  "  call setpos('.', pos)
-  "endtry
-endfunction
 
 start

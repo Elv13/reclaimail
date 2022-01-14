@@ -42,7 +42,7 @@ rm -r /opt/neovim-static/share/locale/ \
     /opt/neovim-static/etc/nvim/lua/.git
 
 # If your config rely on a theme, then install it.
-for file in $(find /opt/neovim-static/share/nvim/runtime/colors/ | grep -v elflord); do
+for file in $(find /opt/neovim-static/share/nvim/runtime/colors/ -type f| grep -v elflord); do
     rm $file
 done
 
@@ -58,6 +58,14 @@ rm /opt/neovim-static/share/nvim/runtime/syntax/nsis.vim
 rm /opt/neovim-static/share/nvim/runtime/syntax/foxpro.vim
 rm /opt/neovim-static/share/nvim/runtime/syntax/autoit.vim
 
+rm /opt/neovim-static/share/nvim/runtime/autoload/phpcomplete.vim \
+    /opt/neovim-static/share/nvim/runtime/syntax/php.vim \
+    /opt/neovim-static/share/nvim/runtime/autoload/haskellcomplete.vim \
+    /opt/neovim-static/share/nvim/runtime/syntax/xmodmap.vim \
+    /opt/neovim-static/share/nvim/runtime/syntax/sqlanywhere.vim \
+    /opt/neovim-static/share/nvim/runtime/synmenu.vim \
+    /opt/neovim-static/share/nvim/runtime/syntax/8th.vim
+
 cd /
 mkdir -p /export
 
@@ -71,7 +79,7 @@ done
 # Remove the comments from the .vim
 for file in $(find /opt/neovim-static/ -iname '*.vim'); do
     mv $file ${file}.origin
-    grep -vE '^["]' ${file}.origin > $file
+    grep -vE '^[ ]*["]' ${file}.origin > $file
     rm ${file}.origin
 done
 

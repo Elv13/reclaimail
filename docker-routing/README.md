@@ -16,7 +16,7 @@ on-demand.
 
 Automatic DNS and DNS-based service discovery also needs
 to work.  Using Avahi/Bonjour, DHT or UPnP based discovery could
-in theory offer a superior experience then DNS records, but the
+in theory offer a superior experience than DNS records, but the
 later is better integrated and the former can be added later.
 
 Beside, this tries to be a proper router OS with a goal overlapping
@@ -34,7 +34,7 @@ bash scripts is a maintainability burden. It's also slower.
  * Add a low effort firewall config
  * Offer an event driver, object oriented, Lua API into dnsmasq
  * Offer a Lua API for /sys and /proc network knobs
- 
+
 ## Planned
 
  * Generate XML files for cisco and polycom phones

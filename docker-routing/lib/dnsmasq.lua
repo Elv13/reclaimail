@@ -1,15 +1,16 @@
 --!/usr/bin/lua
-local unpack = unpack or table.unpack -- Lua 5.1 compat
-local ip = unpack(require("reclaim.routing.proc_ip"))
-local devices = require("reclaim.routing.devices._base")
-local utils = require("reclaim.routing.utils")
-local lease_obj = require("reclaim.routing.lease")
+local unpack        = unpack or table.unpack -- Lua 5.1 compat
+local ip            = unpack(require("reclaim.routing.proc_ip"))
+local devices       = require("reclaim.routing.devices._base")
+local utils         = require("reclaim.routing.utils")
+local lease_obj     = require("reclaim.routing.lease")
 local create_object = require("reclaim.routing.object")
 
 local leases, leases_by_mac = create_object(), {}
 local hosts , saved_hosts   = create_object(), {}
 local ethers, saved_ethers  = create_object(), {}
 local device_objs = {}
+
 local interfaces = {
     by_name = {},
     by_mac  = {},
@@ -311,7 +312,7 @@ local function load_hosts()
 end
 
 local function load_eithers()
-    local db = parse("/etc/ether")
+    local db = parse("/etc/ethers")
 
     local metadata = {}
 
@@ -345,7 +346,7 @@ local i_mac = {
     wlan = os.getenv("WLAN_MAC"),
 }
 
-local function add_host(args)
+--[[local function add_host(args)
     --syntax: mac1,mac2..macn,hostname,ipv4,expire
 
     local host = ""
@@ -369,7 +370,7 @@ local function add_host(args)
     table.insert(config._buffer, "dhcp-host="..host)
 
     --TODO all the other options and magic values
-end
+end]]
 
 local function add_dhcp_option(option, value)
     table.insert(config._buffer, "dhcp-option="..option..","..value)
@@ -388,7 +389,7 @@ module.arp             = {}
 module.session         = session
 module.config          = config
 module.ethers          = load_eithers()
-module.add_host        = add_host
+-- module.add_host        = add_host
 module.add_dhcp_option = add_dhcp_option
 module.add_device      = add_device
 

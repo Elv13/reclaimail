@@ -1,6 +1,6 @@
 
-local dnsmasq = require("dnsmasq")
-local procip, sysip = unpack(require("proc_ip"))
+local dnsmasq = require("reclaim.routing.dnsmasq")
+local procip, sysip = unpack(require("reclaim.routing.proc_ip"))
 local module, methods = {}, {}
 
 local current_interfaces = {}

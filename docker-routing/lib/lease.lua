@@ -1,4 +1,7 @@
 local create_object = require("reclaim.routing.object")
+local database = require("reclaim.routing.database")
+
+local class = {}
 
 local module = create_object { class = true }
 
@@ -64,6 +67,7 @@ end
 -- Called by dnsmasq.lua
 function module._create_existing(args)
     local ret = create_object {enable_properties = true}
+    ret._private.tfiles_by_path = {}
     ret._private.previous_hostname = {}
     ret._private.class = module
 
@@ -74,7 +78,12 @@ function module._create_existing(args)
     return ret
 end
 
+function class:persist()
+    database.hosts._persist(self)
+end
+
 local function new()
+    --
 end
 
 local mt = getmetatable(module)

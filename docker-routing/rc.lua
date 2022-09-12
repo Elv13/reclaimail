@@ -5,6 +5,7 @@ local ip         = unpack(require("reclaim.routing.proc_ip"))
 local pxe        = require("reclaim.routing.pxe")
 local devices    = require("reclaim.routing.devices")
 local lease      = require("reclaim.routing.lease")
+local database   = require("database")
 
 require("reclaim.routing.isorepository")
 require("reclaim.routing.firewall")
@@ -42,6 +43,10 @@ ip.v6.conf.all.disable_ipv6 = 1
 -- Begin to forward packets between interfaces.
 ip.v4.ip_forward = 1
 
+-- Persist the leases outside of the container.
+database.leases.path = "/etc/dnsmasq.leases"
+database.hosts.path = "/etc/dnsmasq.hosts"
+
 -- The WAN isn't managed by dnsmasq, but needs initialization anyway.
 if i_macs.wan then
     interfaces.wan {
@@ -76,11 +81,11 @@ end
 
 -- Always give an hostname to the router when the domain is set.
 if i_macs.lan and domain and not self_hostname:find("localhost") then
-    router:add_host {
-        ipv4     = subnet_begin,
-        hostname = self_hostname.."."..domain,
-        expire   = "infinite",
-        macs     = {
+    database.hosts:add_host {
+        ipaddr     = subnet_begin,
+        hostname   = self_hostname.."."..domain,
+        lease_time = "infinite",
+        hwaddr     = {
             i_macs.lan,
         },
     }

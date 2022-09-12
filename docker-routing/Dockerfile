@@ -10,7 +10,7 @@ ADD dnsmasq.patch /dnsmasq-2.80/
 RUN cd /dnsmasq-2.80; patch -p1 < ./dnsmasq.patch && \
     DEB_BUILD_OPTIONS='nostrip noopt debug' dpkg-buildpackage -F
 
-FROM elv13/bootimages
+FROM reclaim/bootimages
 MAINTAINER Emmanuel Lepage Vallee <elv1313+bugs@gmail.com>
 
 # Install dependencies
@@ -37,8 +37,8 @@ RUN \
     update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
 
 #TODO split into 2 containers
-RUN apt install nfs-kernel-server runit inotify-tools -y
-RUN echo '/tftp             10.0.0.0/8(ro,no_root_squash,async,insecure)' > /etc/exports
+RUN apt install runit inotify-tools lua-posix -y
+#RUN echo '/tftp             10.0.0.0/8(ro,no_root_squash,async,insecure)' > /etc/exports
 
 # Add some files
 ADD run.sh rc.lua /

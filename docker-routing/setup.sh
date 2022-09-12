@@ -107,13 +107,15 @@ else
 
     echo "127.0.0.1 localhost" > ~/.config/reclaim/routing/hosts
     touch ~/.config/reclaim/routing/ether
+    touch ~/.config/reclaim/routing/dnsmasq.leases
+    touch ~/.config/reclaim/routing/dnsmasq.hosts
 
     if [ ! -e ~/.config/reclaim/routing/rc.lua ]; then
         cp ./rc.lua ~/.config/reclaim/routing/rc.lua
     fi
 fi
 
-docker build . -t elv13/routing
+docker build . -t reclaim/routing
 
 docker run -ti\
     --privileged \
@@ -122,10 +124,12 @@ docker run -ti\
     --env "WAN_MAC=$WAN_MAC" \
     --env "WLAN_MAC=$WLAN_MAC" \
     -v ~/.config/reclaim/routing/hosts:/etc/hosts \
-    -v ~/.config/reclaim/routing/ether:/etc/ether \
+    -v ~/.config/reclaim/routing/ethers:/etc/ethers \
+    -v ~/.config/reclaim/routing/dnsmasq.leases:/etc/dnsmasq.leases \
+    -v ~/.config/reclaim/routing/dnsmasq.hosts:/etc/dnsmasq.hosts \
     -v /tmp:/tmp \
     -v $HOME/dnsmasq-2.80:/dnsmasq-2.80 \
     --device=/dev/loop-control:/dev/loop-control \
     -v /mnt/sdc1/ISO:/ISO \
-    -t elv13/routing 
+    -t reclaim/routing
     #./run.sh

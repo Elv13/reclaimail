@@ -1,0 +1,15 @@
+systemd
+libsystemd0
+kmod
+psmisc
+grub-pc
+linux-image-amd64
+xfsprogs
+ca-certificates
+grub-efi-amd64-bin
+efibootmgr
+bsdmainutils
+parted
+firmware-linux-nonfree
+lm-sensors
+locales

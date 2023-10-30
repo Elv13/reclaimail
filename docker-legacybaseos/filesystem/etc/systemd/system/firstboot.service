@@ -1,0 +1,9 @@
+[Unit]
+Description=Finish the installation.
+
+[Service]
+ExecStart=/bin/bash /usr/sbin/firstboot.sh
+
+[Install]
+WantedBy=multi-user.target
+
